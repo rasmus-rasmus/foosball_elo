@@ -5,7 +5,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class Player(models.Model):
     player_name = models.CharField(max_length=50, unique=True)
     elo_rating = models.IntegerField(default=400)
-    opponent_average_rating = models.DecimalField(default=-1, max_digits=10, decimal_places=2)
+    opponent_average_rating = models.DecimalField(default=0, max_digits=10, decimal_places=2)
     number_of_games_played = models.IntegerField(default=0)
     
     def __str__(self):
@@ -24,9 +24,9 @@ class Game(models.Model):
     date_played = models.DateField('date played')
     
     def winner(self) -> int:
-        if self.team_1_score == 10 and self.team_2_score < 10:
+        if int(self.team_1_score) == 10 and int(self.team_2_score) < 10:
             return 1
-        elif self.team_2_score == 10 and self.team_1_score < 10:
+        elif int(self.team_2_score) == 10 and int(self.team_1_score) < 10:
             return 2
         return 0
     class Meta:
