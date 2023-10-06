@@ -1,0 +1,31 @@
+<!doctype html>
+
+<html lang="en-US">
+    <head>
+        <meta charset='utf-8'>
+        <title>Elo</title>
+    </head>
+    <body>
+        <div>
+            <h1>Welcome to the RD8 foosball elo ranking page!</h1>
+            {% if top_5_list %}
+            <h2>Top 5:</h2>
+                <ol>
+                {% for player in top_5_list %}
+                    <li>
+                        <a href="{% url 'elo_app:player_detail' player.id %}"> {{ player.player_name }}</a>
+                        -- {{ player.elo_rating }}
+                    </li>
+                {% endfor %}
+                </ol>
+            {% else %}
+                <p>No top 5 available!</p>
+            {% endif %}
+        </div>
+       
+        <br>
+        <a href={% url 'elo_app:all' %}>All players</a>
+        <br>
+        <a href={% url 'elo_app:submit_form' %}>Submit a game</a>
+    </body>
+</html>

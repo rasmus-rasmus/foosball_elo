@@ -1,0 +1,25 @@
+<!doctype html>
+
+<html lang="en-US">
+    <head>
+        <meta charset='utf-8'>
+        <title>Elo</title>
+    </head>
+    <body>
+        <h1>All players</h1>
+        {% if player_list %}
+        <h2>Ranking:</h2>
+            <ol>
+            {% for player in player_list %}
+                <li>
+                    <a href="{% url 'elo_app:player_detail' player.id %}"> {{ player.player_name }}</a>
+                    -- {{ player.elo_rating }}
+                </li>
+            {% endfor %}
+            </ol>
+        {% else %}
+            <p>No players available!</p>
+        {% endif %}
+        <a href={% url 'elo_app:index' %}>Back to overview</a>
+    </body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8">
+        <title>Submit form</title>
+    </head>
+    <body>
+        <div>
+            <form action="{% url 'elo_app:submit_game' %}" method="post">
+                {% csrf_token %}
+                <fieldset>
+                    <legend><h1>Submit a game</h1></legend>
+                    {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+                    <div name="team1">
+                        <strong>Team 1</strong><br>
+                        <label for="team_1_defense">Team 1 defense</label>
+                        <select id="team_1_defense" name="team_1_defense">
+                            <option disabled selected value> -- select a player -- </option>
+                            {% for player in all_players_list %}
+                                <option value={{ player.id }}>{{ player.player_name }}</option>
+                            {% endfor %}
+                        </select><br>
+                        <label for="team_1_attack">Team 1 attack</label>
+                        <select id="team_1_attack" name="team_1_attack">
+                            <option disabled selected value> -- select a player -- </option>
+                            {% for player in all_players_list %}
+                                <option value={{ player.id }}>{{ player.player_name }}</option>
+                            {% endfor %}
+                        </select><br>
+                    </div>
+                    <div name="team2">
+                        <strong>Team 2</strong><br>
+                        <label for="team_2_defense">Team 2 defense</label>
+                        <select id="team_2_defense" name="team_2_defense">
+                            <option disabled selected value> -- select a player -- </option>
+                            {% for player in all_players_list %}
+                                <option value={{ player.id }}>{{ player.player_name }}</option>
+                            {% endfor %}
+                        </select><br>
+                        <label for="team_2_attack">Team 2 attack</label>
+                        <select id="team_2_attack" name="team_2_attack">
+                            <option disabled selected value> -- select a player -- </option>
+                            {% for player in all_players_list %}
+                                <option value={{ player.id }}>{{ player.player_name }}</option>
+                            {% endfor %}
+                        </select><br>
+                    </div>
+                    <div name="score">
+                        <label for="team_1_score">Team 1 score</label>
+                        <select id="team_1_score" name="team_1_score">
+                            <option value=0 selected>0</option>
+                            {% for i in '0123456789'|make_list %}
+                                <option value={{ forloop.counter }}>{{ forloop.counter }}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="team_2_score">Team 2 score</label>
+                        <select id="team_2_score" name="team_2_score">
+                            <option value=0 selected>0</option>
+                            {% for i in '0123456789'|make_list %}
+                                <option value={{ forloop.counter }}>{{ forloop.counter }}</option>
+                            {% endfor %}
+                        </select><br>
+                    </div>
+                    <div name="date">
+                        <label for="date">Date of game</label>
+                        <input type="date" name="date" id="date">
+                    </div>
+                </fieldset>
+                <input type="submit" value="Submit">
+            </form>
+        </div>
+    </body>
+
+</html>
