@@ -4,6 +4,11 @@ from .models import Player, Game
 import datetime
 from django.utils import timezone
 
+
+#############
+## HELPERS ##
+#############
+
 def create_player(name : str, rating : int = 400):
     return Player.objects.create(player_name=name, elo_rating=rating)
 
@@ -30,7 +35,10 @@ def create_game(winner_team : int,
                                team_2_score = 10 if winner_team==0 else 10,
                                date_played=date)
 
-# Create your tests here.
+
+###########
+## TESTS ##
+###########
 class IndexTest(TestCase):
         
     def test_one_player(self):
@@ -85,14 +93,14 @@ class AllViewTest(TestCase):
                                  players[::-1])
 
 class DetailTest(TestCase):
-    def test_detail_view(self):
+    def test_detail_view_no_player(self):
         response = self.client.get(reverse('elo_app:player_detail', args=(1,)))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
         
 
-class SubmitFormTest(TestCase):
+class SubmitFormGameTest(TestCase):
     def test_submit_form_no_players(self):
-        response = self.client.get(reverse('elo_app:submit_game'))
+        response = self.client.get(reverse('elo_app:submit_form_game'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Team 1")
         self.assertContains(response, "Team 2")
@@ -101,11 +109,15 @@ class SubmitFormTest(TestCase):
     def test_submit_form_two_players(self):
         playerB = create_player("playerB")
         playerA = create_player("playerA")
-        response = self.client.get(reverse('elo_app:submit_form'))
+        response = self.client.get(reverse('elo_app:submit_form_game'))
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['all_players_list'], [playerA, playerB])
         
 class SubmitGameTest(TestCase):
+    def test_submit_game_get_method(self):
+        response = self.client.get(reverse('elo_app:submit_game'))
+        self.assertEqual(response.status_code, 405)
+    
     def test_submit_game_no_players(self):
         response = self.client.post(reverse('elo_app:submit_game'))
         self.assertEqual(response.status_code, 200)
@@ -120,28 +132,90 @@ class SubmitGameTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields')
         
-    def test_submit_game_all_players_no_date(self):
+    def test_submit_game_valid_team_no_date(self):
         context = create_team()[1]
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields')
         
-    def test_submit_game_all_players_invalid_score(self):
+    def test_submit_game_valid_team_invalid_score(self):
         context = create_team()[1]
         context['date'] = timezone.now().date()
         context['team_1_score'] = 5
         context['team_2_score'] = 7
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 200)
-        self.assertQuerySetEqual(response.context['error_message'], 'Your game is undecided - please fill out a valid score')
+        self.assertQuerySetEqual(response.context['error_message'], "Indecisive scores: ({}, {}).".format(5, 7))
         
-    # def test_submit_valid_game(self):
-    #     context = create_team()[1]
-    #     context['date'] = timezone.now().date()
-    #     context['team_1_score'] = 5
-    #     context['team_2_score'] = 10
-    #     response = self.client.post(reverse('elo_app:submit_game'), context)
-    #     self.assertEqual(response.status_code, 302)
+    def test_submit_game_invalid_team(self):
+        context = create_team()[1]
+        context['date'] = timezone.now()
+        context['team_1_score'] = 7
+        context['team_2_score'] = 10
+        #Making teams invalid
+        context['team_1_defense'] = context['team_2_defense']
+        response = self.client.post(reverse('elo_app:submit_game'), context)
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['error_message'], 
+                                 "Invalid teams: {} plays on both teams".format(Player.objects.get(pk=context['team_1_defense'])))
+        
+    def test_submit_game_invalid_team_v2(self):
+        context = create_team()[1]
+        context['date'] = timezone.now()
+        context['team_1_score'] = 7
+        context['team_2_score'] = 10
+        #Making teams invalid
+        context['team_1_defense'] = context['team_2_attack']
+        response = self.client.post(reverse('elo_app:submit_game'), context)
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['error_message'], 
+                                 "Invalid teams: {} plays on both teams".format(Player.objects.get(pk=context['team_1_defense'])))
+        
+    def test_submit_valid_game(self):
+        context = create_team()[1]
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 5
+        context['team_2_score'] = 10
+        response = self.client.post(reverse('elo_app:submit_game'), context)
+        self.assertEqual(response.status_code, 302)
+        
+    def test_submit_valid_game_reverse_score(self):
+        context = create_team()[1]
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        response = self.client.post(reverse('elo_app:submit_game'), context)
+        self.assertEqual(response.status_code, 302)
+        
+    def test_submit_game_db_create_game(self):
+        players, context = create_team()
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        self.client.post(reverse('elo_app:submit_game'), context)
+        game = Game.objects.all()[0]
+        self.assertEqual(game.winner(), 1)
+        self.assertEqual(game.team_1_defense, players[0])
+        self.assertEqual(game.team_2_defense, players[1])
+        self.assertEqual(game.team_1_attack, players[2])
+        self.assertEqual(game.team_2_attack, players[3])
+        self.assertEqual(game.team_1_score, 10)
+        self.assertEqual(game.team_2_score, 5)
+        self.assertEqual(game.date_played, timezone.now().date())
+        
+    def test_submit_game_db_update_players_equal_elos(self):
+        players, context = create_team()
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        self.client.post(reverse('elo_app:submit_game'), context)
+        for i in range(4):
+            player = Player.objects.get(pk=players[i].id)
+            self.assertEqual(player.number_of_games_played, 1)
+            self.assertEqual(player.opponent_average_rating, 400)
+            self.assertEqual(player.elo_rating,
+                             400+16 if i%2==0 else 400-16)
+        
         
         
 

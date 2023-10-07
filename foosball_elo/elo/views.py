@@ -1,10 +1,16 @@
 import decimal
 from typing import Any
 from django.db.models.query import QuerySet
-from django.shortcuts import render
-from django.http import HttpResponse, HttpRequest
-from django.views import generic
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed
+from django.views import View, generic
+from django.urls import reverse
 from .models import Player, Game
+
+
+#############
+## HELPERS ##
+#############
 
 def update_player_stats(player : Player, opponent_rating : float, rating_diff : int = 0):
     player.opponent_average_rating *= player.number_of_games_played
@@ -18,12 +24,46 @@ def compute_rating_diff(team_rating : int,
                         opponent_rating : int, 
                         victory : bool, 
                         scaling_factor : int = 400, 
-                        adaption_step : int = 64):
+                        adaption_step : int = 64) -> int:
     expected_outcome = 1 / (1 + 10**((opponent_rating - team_rating) / scaling_factor))
-    print("expected outcome: ", expected_outcome)
-    return adaption_step * (int(victory) - expected_outcome)
+    return round(adaption_step * (int(victory) - expected_outcome))
 
-# Create your views here.
+def is_valid_score(score1 : int, score2 : int) -> bool:
+    return (score1 == 10 and score2 < 10) or (score2 == 10 and score1 < 10)
+
+def are_valid_teams(team_1_defense : Player, 
+                    team_1_attack : Player, 
+                    team_2_defense : Player, 
+                    team_2_attack : Player, 
+                    invalid_team_member : list[str]):
+    if team_1_defense.player_name == team_2_defense.player_name \
+        or team_1_defense.player_name == team_2_attack.player_name:
+        invalid_team_member.append(team_1_defense.player_name)
+        return False
+    elif team_1_attack.player_name == team_2_defense.player_name \
+        or team_1_attack.player_name == team_2_attack.player_name:
+        invalid_team_member.append(team_1_attack.player_name)
+        return False
+    return True
+    
+class InvalidScoreError(Exception):
+    def __init__(self, score1, score2):
+        self.value = (score1, score2)
+    
+    def __str__(self):
+        return "Indecisive scores: ({}, {}).".format(self.value[0], self.value[1])
+                  
+class InvalidTeamsError(Exception):
+    def __init__(self, player_name : str):
+        self.value = player_name
+        
+    def __str__(self):
+        return "Invalid teams: {} plays on both teams".format(self.value)    
+
+
+###########
+## VIEWS ##
+###########
 class IndexView(generic.ListView):
     template_name = 'elo/index.html'
     context_object_name = 'top_5_list'
@@ -37,29 +77,50 @@ class AllView(generic.ListView):
     def get_queryset(self) -> QuerySet[Player]:
         return Player.objects.order_by('-elo_rating')
     
-class SubmitFormView(generic.ListView):
-    template_name = 'elo/submit_form.html'
+class SubmitGameView(generic.ListView):
+    template_name = 'elo/submit_game_form.html'
     context_object_name = 'all_players_list'
     
     def get_queryset(self):
         return Player.objects.order_by('player_name')
     
+class SubmitPlayerView(generic.TemplateView):
+    template_name = 'elo/submit_player_form.html'
+
 
 def submit_game(request: HttpRequest):
+    if not request.method == 'POST':
+        return HttpResponseNotAllowed(['POST'])
     data = request.POST
     try:
         team_1_defense = Player.objects.get(pk=data['team_1_defense'])
         team_1_attack = Player.objects.get(pk=data['team_1_attack'])
         team_2_defense = Player.objects.get(pk=data['team_2_defense'])
         team_2_attack = Player.objects.get(pk=data['team_2_attack'])
-        team_1_score = data['team_1_score']
-        team_2_score = data['team_2_score']
+        team_1_score = int(data['team_1_score'])
+        team_2_score = int(data['team_2_score'])
         date = data['date']
-    except (KeyError, Player.DoesNotExist):
-        return render(request, 'elo/submit_form.html', {
+        if not is_valid_score(team_1_score, team_2_score):
+            raise InvalidScoreError(team_1_score, team_2_score)
+        invalid_team_member = []
+        if not are_valid_teams(team_1_defense, team_1_attack, team_2_defense, team_2_attack, invalid_team_member):
+            raise InvalidTeamsError(invalid_team_member[0])
+    except KeyError:
+        return render(request, 'elo/submit_game_form.html', {
             'all_players_list': Player.objects.order_by('player_name'),
-            'error_message': 'Please fill out all game data'
+            'error_message': 'Please fill out all fields'
         })
+    except InvalidScoreError as error:
+        return render(request, 'elo/submit_game_form.html', {
+            'all_players_list': Player.objects.order_by('player_name'),
+            'error_message': str(error)
+        })
+    except InvalidTeamsError as error:
+        return render(request, 'elo/submit_game_form.html', {
+            'all_players_list': Player.objects.order_by('player_name'),
+            'error_message': str(error)
+        })
+            
     game = Game.objects.create(team_1_defense=team_1_defense,
                                team_1_attack=team_1_attack,
                                team_2_defense=team_2_defense,
@@ -67,21 +128,26 @@ def submit_game(request: HttpRequest):
                                team_1_score=team_1_score,
                                team_2_score=team_2_score,
                                date_played=date)
+    
     team_1_av_rating = (team_1_defense.elo_rating + team_1_attack.elo_rating) / 2
     team_2_av_rating = (team_2_defense.elo_rating + team_2_attack.elo_rating) / 2
+    
     team_1_rating_diff = compute_rating_diff(team_1_av_rating, 
                                              team_2_av_rating, 
                                              game.winner() == 1)
     team_2_rating_diff = compute_rating_diff(team_2_av_rating,
                                              team_1_av_rating,
                                              game.winner() == 2)
+    
     update_player_stats(team_1_defense, team_2_av_rating, team_1_rating_diff / 2)
     update_player_stats(team_1_attack, team_2_av_rating, team_1_rating_diff / 2)
     update_player_stats(team_2_defense, team_1_av_rating, team_2_rating_diff / 2)
     update_player_stats(team_2_attack, team_1_av_rating, team_2_rating_diff / 2)
-    return HttpResponse("<h2>You just submitted a game</h2>")
+    
+    return HttpResponseRedirect(reverse('elo_app:index'))
 
 def player_detail(request: HttpRequest, player_id: int):
     #TODO: Implement
-    return HttpResponse("<h2>You are looking at details for player {}".format(player_id))
+    player = get_object_or_404(Player, pk=player_id)
+    return HttpResponse("<h2>You are looking at details for {}".format(player.player_name))
 
