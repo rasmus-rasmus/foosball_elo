@@ -4,9 +4,8 @@ from .models import Game, Player
 admin.site.site_header="Elo Administration"
 
 class PlayerAdmin(admin.ModelAdmin):
-    list_display=('player_name', 'elo_rating')
-    list_filter=('player_name',)
-    search_fields=('player_name',)
+    list_display = ('player_name', 'id', 'elo_rating')
+    search_fields = ('player_name',)
     
 class GameAdmin(admin.ModelAdmin):
     fieldsets = [

@@ -10,6 +10,10 @@ class Player(models.Model):
     
     def __str__(self):
         return self.player_name
+    
+    class Meta:
+        ordering = ['player_name']
+    
 
     
 class Game(models.Model):
