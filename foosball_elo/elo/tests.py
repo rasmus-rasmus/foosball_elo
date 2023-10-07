@@ -216,6 +216,15 @@ class SubmitGameTest(TestCase):
             self.assertEqual(player.elo_rating,
                              400+16 if i%2==0 else 400-16)
         
+    #TODO: Write test ensuring that rating can't drop below 100
+    
+class SubmitPlayerFormTest(TestCase):
+    #TODO: Write
+    pass
+    
+class SubmitPlayerTest(TestCase):
+    #TODO: Write
+    pass
         
         
 

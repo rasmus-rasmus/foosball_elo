@@ -1,6 +1,7 @@
 import decimal
 from typing import Any
 from django.db.models.query import QuerySet
+from django.db.utils import IntegrityError
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed
 from django.views import View, generic
@@ -17,7 +18,7 @@ def update_player_stats(player : Player, opponent_rating : float, rating_diff : 
     player.opponent_average_rating += decimal.Decimal(opponent_rating)
     player.number_of_games_played += 1
     player.opponent_average_rating /= player.number_of_games_played
-    player.elo_rating += rating_diff
+    player.elo_rating = max(100, player.elo_rating + rating_diff)
     player.save()
     
 def compute_rating_diff(team_rating : int, 
@@ -145,6 +146,30 @@ def submit_game(request: HttpRequest):
     update_player_stats(team_2_attack, team_1_av_rating, team_2_rating_diff / 2)
     
     return HttpResponseRedirect(reverse('elo_app:index'))
+
+def submit_player(request: HttpRequest):
+    if not request.method == 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    try:
+        if len(request.POST['player_name']) == 0:
+            raise ValueError
+        accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        accepted_characters += accepted_characters.lower()
+        accepted_characters += "1234567890_"
+        for character in request.POST['player_name']:
+            if not character in accepted_characters:
+                raise ValueError
+        Player.objects.create(player_name=request.POST["player_name"])
+    except IntegrityError:
+        return render(request, 
+                      'elo/submit_player_form.html', 
+                      {'error_message': 'Username already in use'})
+    except ValueError:
+        return render(request, 
+                      'elo/submit_player_form.html', 
+                      {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore'})
+    
+    return HttpResponse("<h2>You just signed up!</h2>")
 
 def player_detail(request: HttpRequest, player_id: int):
     #TODO: Implement
