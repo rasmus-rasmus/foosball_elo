@@ -18,7 +18,7 @@ def update_player_stats(player : Player, opponent_rating : float, rating_diff : 
     player.opponent_average_rating += decimal.Decimal(opponent_rating)
     player.number_of_games_played += 1
     player.opponent_average_rating /= player.number_of_games_played
-    player.elo_rating = max(100, player.elo_rating + rating_diff)
+    player.elo_rating = max(100, round(player.elo_rating + rating_diff))
     player.save()
     
 def compute_rating_diff(team_rating : int, 
@@ -27,7 +27,7 @@ def compute_rating_diff(team_rating : int,
                         scaling_factor : int = 400, 
                         adaption_step : int = 64) -> int:
     expected_outcome = 1 / (1 + 10**((opponent_rating - team_rating) / scaling_factor))
-    return round(adaption_step * (int(victory) - expected_outcome))
+    return adaption_step * (int(victory) - expected_outcome)
 
 def is_valid_score(score1 : int, score2 : int) -> bool:
     return (score1 == 10 and score2 < 10) or (score2 == 10 and score1 < 10)
@@ -159,7 +159,7 @@ def submit_player(request: HttpRequest):
         for character in request.POST['player_name']:
             if not character in accepted_characters:
                 raise ValueError
-        Player.objects.create(player_name=request.POST["player_name"])
+        player = Player.objects.create(player_name=request.POST["player_name"])
     except IntegrityError:
         return render(request, 
                       'elo/submit_player_form.html', 
@@ -169,7 +169,7 @@ def submit_player(request: HttpRequest):
                       'elo/submit_player_form.html', 
                       {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore'})
     
-    return HttpResponse("<h2>You just signed up!</h2>")
+    return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)))
 
 def player_detail(request: HttpRequest, player_id: int):
     #TODO: Implement
