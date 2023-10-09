@@ -6,8 +6,8 @@
         <title>Elo</title>
     </head>
     <body>
+        <h1>Welcome to the RD8 foosball elo ranking page!</h1>
         <div>
-            <h1>Welcome to the RD8 foosball elo ranking page!</h1>
             {% if top_5_list %}
             <h2>Top 5:</h2>
                 <ol>
@@ -21,6 +21,31 @@
             {% else %}
                 <p>No top 5 available!</p>
             {% endif %}
+        </div>
+        <div>
+            <h2>Recent games</h2>
+            <table border=1>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Team 1</th>
+                        <th>Team 2</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for game in recent_games %}
+                    <tr>
+                        <td>
+                            {{ game.date_played }}
+                        </td>
+                        <td>{{ game.team_1_defense }}, {{ game.team_1_attack }}</td>
+                        <td>{{ game.team_2_defense}}, {{ game.team_2_attack }}</td>
+                        <td>{{ game.team_1_score }} - {{ game.team_2_score }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
        
         <br>

@@ -70,6 +70,11 @@ class IndexView(generic.ListView):
     template_name = 'elo/index.html'
     context_object_name = 'top_5_list'
     
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context['recent_games'] = Game.objects.order_by('-date_played')[:5]
+        return context
+    
     def get_queryset(self) -> QuerySet[Player]:
         return Player.objects.order_by('-elo_rating')[:5]
     
