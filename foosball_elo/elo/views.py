@@ -1,5 +1,6 @@
 import decimal
 from typing import Any
+from django.db import models
 from django.db.models.query import QuerySet
 from django.db.utils import IntegrityError
 from django.shortcuts import render, get_object_or_404
@@ -87,7 +88,12 @@ class SubmitGameView(generic.ListView):
     
 class SubmitPlayerView(generic.TemplateView):
     template_name = 'elo/submit_player_form.html'
+    
+class PlayerDetailView(generic.DetailView):
+    model = Player
 
+    def get_queryset(self) -> QuerySet[Player]:
+        return Player.objects.all()
 
 def submit_game(request: HttpRequest):
     if not request.method == 'POST':
@@ -170,9 +176,4 @@ def submit_player(request: HttpRequest):
                       {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore'})
     
     return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)))
-
-def player_detail(request: HttpRequest, player_id: int):
-    #TODO: Implement
-    player = get_object_or_404(Player, pk=player_id)
-    return HttpResponse("<h2>You are looking at details for {}".format(player.player_name))
 
