@@ -7,7 +7,8 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed
 from django.views import View, generic
 from django.urls import reverse
-from .models import Player, Game
+from django.utils import timezone
+from .models import Player, Game, PlayerRating
 
 
 #############
@@ -171,6 +172,7 @@ def submit_player(request: HttpRequest):
             if not character in accepted_characters:
                 raise ValueError
         player = Player.objects.create(player_name=request.POST["player_name"])
+        player_rating = PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=400)
     except IntegrityError:
         return render(request, 
                       'elo/submit_player_form.html', 
@@ -180,5 +182,6 @@ def submit_player(request: HttpRequest):
                       'elo/submit_player_form.html', 
                       {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore'})
     
-    return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)))
+    return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
+                                {'ratings': player.playerrating_set.all()})
 
