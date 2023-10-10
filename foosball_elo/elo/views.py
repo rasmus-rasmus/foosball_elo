@@ -15,12 +15,12 @@ from .models import Player, Game, PlayerRating
 ## HELPERS ##
 #############
 
-def update_player_stats(player : Player, opponent_rating : float, rating_diff : int = 0):
+def update_player_stats(player : Player, opponent_rating : float):
     player.opponent_average_rating *= player.number_of_games_played
     player.opponent_average_rating += decimal.Decimal(opponent_rating)
     player.number_of_games_played += 1
     player.opponent_average_rating /= player.number_of_games_played
-    player.elo_rating = max(100, round(player.elo_rating + rating_diff))
+    # player.elo_rating = max(100, round(player.elo_rating + rating_diff))
     player.save()
     
 def compute_rating_diff(team_rating : int, 
@@ -145,17 +145,17 @@ def submit_game(request: HttpRequest):
     team_1_av_rating = (team_1_defense.elo_rating + team_1_attack.elo_rating) / 2
     team_2_av_rating = (team_2_defense.elo_rating + team_2_attack.elo_rating) / 2
     
-    team_1_rating_diff = compute_rating_diff(team_1_av_rating, 
-                                             team_2_av_rating, 
-                                             game.winner() == 1)
-    team_2_rating_diff = compute_rating_diff(team_2_av_rating,
-                                             team_1_av_rating,
-                                             game.winner() == 2)
+    # team_1_rating_diff = compute_rating_diff(team_1_av_rating, 
+    #                                          team_2_av_rating, 
+    #                                          game.winner() == 1)
+    # team_2_rating_diff = compute_rating_diff(team_2_av_rating,
+    #                                          team_1_av_rating,
+    #                                          game.winner() == 2)
     
-    update_player_stats(team_1_defense, team_2_av_rating, team_1_rating_diff / 2)
-    update_player_stats(team_1_attack, team_2_av_rating, team_1_rating_diff / 2)
-    update_player_stats(team_2_defense, team_1_av_rating, team_2_rating_diff / 2)
-    update_player_stats(team_2_attack, team_1_av_rating, team_2_rating_diff / 2)
+    update_player_stats(team_1_defense, team_2_av_rating)
+    update_player_stats(team_1_attack, team_2_av_rating)
+    update_player_stats(team_2_defense, team_1_av_rating)
+    update_player_stats(team_2_attack, team_1_av_rating)
     
     return HttpResponseRedirect(reverse('elo_app:index'))
 
