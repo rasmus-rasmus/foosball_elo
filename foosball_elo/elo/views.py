@@ -176,11 +176,15 @@ def submit_player(request: HttpRequest):
     except IntegrityError:
         return render(request, 
                       'elo/submit_player_form.html', 
-                      {'error_message': 'Username already in use'})
+                      {'error_message': 'Username already in use.'})
     except ValueError:
         return render(request, 
                       'elo/submit_player_form.html', 
-                      {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore'})
+                      {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore.'})
+    except KeyError:
+        return render(request,
+                      'elo/submit_player_form.html',
+                      {'error_message': 'Something went wrong, please try again.'})
     
     return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
                                 {'ratings': player.playerrating_set.all()})
