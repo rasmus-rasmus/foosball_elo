@@ -47,6 +47,10 @@
                 </tbody>
             </table>
         </div>
+        <form action="{% url 'elo_app:update_ratings' %}" method="post">
+            {% csrf_token %}
+            <input type="submit" value="Update ratings">
+        </form>
        
         <br>
         <a href={% url 'elo_app:all' %}>All players</a>

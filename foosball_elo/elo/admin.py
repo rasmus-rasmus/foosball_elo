@@ -10,9 +10,10 @@ class PlayerAdmin(admin.ModelAdmin):
 class GameAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Players', {'fields': ('team_1_defense', 'team_1_attack', 'team_2_defense', 'team_2_attack')}),
-         ('Data', {'fields': ('team_1_score', 'team_2_score', 'date_played')})
+         ('Data', {'fields': ('team_1_score', 'team_2_score', 'date_played')}),
+         ('Status', {'fields': ('updates_performed',)})
     ]
-    list_display = ['date_played', 'team_1_defense', 'team_1_attack', 'team_2_defense', 'team_2_attack', 'id']
+    list_display = ['date_played', 'team_1_defense', 'team_1_attack', 'team_2_defense', 'team_2_attack', 'updates_performed']
     search_fields = ['team_1_defense', 'team_1_attack', 'team_2_defense', 'team_2_attack']
     list_filter = ['date_played']
     

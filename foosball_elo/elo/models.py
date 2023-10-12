@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib import admin
 
 # Create your models here.
 class Player(models.Model):
@@ -8,7 +9,7 @@ class Player(models.Model):
     opponent_average_rating = models.DecimalField(default=0, max_digits=10, decimal_places=2)
     number_of_games_played = models.IntegerField(default=0)
     
-    def update_rating(self):
+    def update_rating(self) -> int:
         self.elo_rating = self.playerrating_set.all[0]
         return self.elo_rating
     
@@ -16,8 +17,7 @@ class Player(models.Model):
         return self.player_name
     
     class Meta:
-        ordering = ['player_name']
-    
+        ordering = ['player_name']    
 
     
 class Game(models.Model):
@@ -25,11 +25,16 @@ class Game(models.Model):
     team_1_attack = models.ForeignKey(Player, on_delete=models.PROTECT, related_name='team_1_attack')
     team_2_defense = models.ForeignKey(Player, on_delete=models.PROTECT, related_name='team_2_defense')
     team_2_attack = models.ForeignKey(Player, on_delete=models.PROTECT, related_name='team_2_attack')
+    
     team_1_score = models.SmallIntegerField(validators=[MinValueValidator(0), 
                                                         MaxValueValidator(10)])
     team_2_score = models.SmallIntegerField(validators=[MinValueValidator(0),
                                                         MaxValueValidator(10)])
+    
     date_played = models.DateField('date played')
+    
+    # Records whether the players in this game have had their rating updated based on its result
+    updates_performed = models.BooleanField('player ratings updated?', default=False)
     
     def winner(self) -> int:
         if int(self.team_1_score) == 10 and int(self.team_2_score) < 10:

@@ -20,16 +20,7 @@ def update_player_stats(player : Player, opponent_rating : float):
     player.opponent_average_rating += decimal.Decimal(opponent_rating)
     player.number_of_games_played += 1
     player.opponent_average_rating /= player.number_of_games_played
-    # player.elo_rating = max(100, round(player.elo_rating + rating_diff))
     player.save()
-    
-def compute_rating_diff(team_rating : int, 
-                        opponent_rating : int, 
-                        victory : bool, 
-                        scaling_factor : int = 400, 
-                        adaption_step : int = 64) -> int:
-    expected_outcome = 1 / (1 + 10**((opponent_rating - team_rating) / scaling_factor))
-    return adaption_step * (int(victory) - expected_outcome)
 
 def is_valid_score(score1 : int, score2 : int) -> bool:
     return (score1 == 10 and score2 < 10) or (score2 == 10 and score1 < 10)
@@ -145,13 +136,6 @@ def submit_game(request: HttpRequest):
     team_1_av_rating = (team_1_defense.elo_rating + team_1_attack.elo_rating) / 2
     team_2_av_rating = (team_2_defense.elo_rating + team_2_attack.elo_rating) / 2
     
-    # team_1_rating_diff = compute_rating_diff(team_1_av_rating, 
-    #                                          team_2_av_rating, 
-    #                                          game.winner() == 1)
-    # team_2_rating_diff = compute_rating_diff(team_2_av_rating,
-    #                                          team_1_av_rating,
-    #                                          game.winner() == 2)
-    
     update_player_stats(team_1_defense, team_2_av_rating)
     update_player_stats(team_1_attack, team_2_av_rating)
     update_player_stats(team_2_defense, team_1_av_rating)
@@ -189,3 +173,29 @@ def submit_player(request: HttpRequest):
     return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
                                 {'ratings': player.playerrating_set.all()})
 
+def update_ratings(request: HttpRequest):
+    if not request.method == 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    unrecorded_games = Game.objects.filter(updates_performed=False)
+    diff_dict = {}
+    for game in unrecorded_games:
+        team_1_diff, team_2_diff = game.compute_rating_diffs()
+        looper_counter = 0
+        for player in (game.team_1_defense, 
+                       game.team_1_attack, 
+                       game.team_2_defense, 
+                       game.team_2_attack):
+            if player.id in diff_dict.keys():
+                diff_dict[player.id] += team_1_diff*.5 if looper_counter < 2 else team_2_diff*.5
+            else:
+                diff_dict[player.id] = team_1_diff*.5 if looper_counter < 2 else team_2_diff*.5
+            looper_counter += 1
+        game.updates_performed = True
+        game.save()
+    print(diff_dict)
+    for player_id, total_diff in diff_dict.items():
+        player = Player.objects.get(pk=player_id)
+        player.elo_rating += total_diff
+        player.save()
+        PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=player.elo_rating)
+    return HttpResponseRedirect(reverse('elo_app:index'))

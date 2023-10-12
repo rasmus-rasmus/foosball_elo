@@ -203,6 +203,9 @@ class SubmitGameTest(TestCase):
         self.assertEqual(game.team_2_score, 5)
         self.assertEqual(game.date_played, timezone.now().date())
         
+    #TODO: Test correct rejection of games submitted with a future date.
+        
+        
     """
     The below tests should be moved to separate update scores functionality
     """
@@ -308,3 +311,4 @@ class SubmitPlayerTest(TestCase):
         self.assertEqual(rating.timestamp, timezone.now().date())
         self.assertEqual(rating.rating, 400)
         
+#TODO: Test 'Update scores' functionality
