@@ -110,11 +110,14 @@ def submit_game(request: HttpRequest):
         team_1_score = int(data['team_1_score'])
         team_2_score = int(data['team_2_score'])
         date = data['date']
+        
         if not is_valid_score(team_1_score, team_2_score):
             raise InvalidScoreError(team_1_score, team_2_score)
+        
         invalid_team_member = []
         if not are_valid_teams(team_1_defense, team_1_attack, team_2_defense, team_2_attack, invalid_team_member):
             raise InvalidTeamsError(invalid_team_member[0])
+        
         if datetime.datetime.strptime(date, "%Y-%m-%d").date() > timezone.now().date():
             raise InvalidDateEror
     except KeyError:
@@ -162,12 +165,14 @@ def submit_player(request: HttpRequest):
     try:
         if len(request.POST['player_name']) == 0:
             raise ValueError
+        
         accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         accepted_characters += accepted_characters.lower()
         accepted_characters += "1234567890_"
         for character in request.POST['player_name']:
             if not character in accepted_characters:
                 raise ValueError
+            
         player = Player.objects.create(player_name=request.POST["player_name"])
         player_rating = PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=400)
     except IntegrityError:
@@ -199,16 +204,17 @@ def update_ratings(request: HttpRequest):
                        game.team_2_defense, 
                        game.team_2_attack):
             if player.id in diff_dict.keys():
-                diff_dict[player.id] += team_1_diff*.5 if looper_counter < 2 else team_2_diff*.5
+                diff_dict[player.id] += round(team_1_diff*.5) if looper_counter < 2 else round(team_2_diff*.5)
             else:
-                diff_dict[player.id] = team_1_diff*.5 if looper_counter < 2 else team_2_diff*.5
+                diff_dict[player.id] = round(team_1_diff*.5) if looper_counter < 2 else round(team_2_diff*.5)
             looper_counter += 1
         game.updates_performed = True
         game.save()
-    print(diff_dict)
+        
     for player_id, total_diff in diff_dict.items():
         player = Player.objects.get(pk=player_id)
-        player.elo_rating += total_diff
+        player.elo_rating = max(player.elo_rating + total_diff, 100)
         player.save()
         PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=player.elo_rating)
+        
     return HttpResponseRedirect(reverse('elo_app:index'))

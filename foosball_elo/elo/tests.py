@@ -350,4 +350,88 @@ class SubmitPlayerTest(TestCase):
         self.assertEqual(rating.timestamp, timezone.now().date())
         self.assertEqual(rating.rating, 400)
         
-#TODO: Test 'Update scores' functionality
+
+class TestUpdateScores(TestCase):
+    
+    def test_submit_game_no_update(self):
+        players, context = create_team()
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        self.client.post(reverse('elo_app:submit_game'), context)
+        for i in range(4):
+            player = Player.objects.get(pk=players[i].id)
+            player_ratings = player.playerrating_set.all()
+            self.assertEqual(len(player_ratings), 0)
+            self.assertEqual(player.number_of_games_played, 1)
+            self.assertEqual(player.opponent_average_rating, 400)
+            self.assertEqual(player.elo_rating, 400)
+            
+    
+    def test_submit_game_db_update_players_equal_elos(self):
+        players, context = create_team()
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        self.client.post(reverse('elo_app:submit_game'), context)
+        self.client.post(reverse('elo_app:update_ratings'))
+        
+        for i in range(4):
+            player = Player.objects.get(pk=players[i].id)
+            player_ratings = player.playerrating_set.all()
+            
+            self.assertEqual(len(player_ratings), 1)
+            self.assertEqual(player_ratings[0].player, player)
+            self.assertEqual(player_ratings[0].timestamp, timezone.now().date())
+            self.assertEqual(player_ratings[0].rating, 
+                             400+16 if i%2==0 else 400-16)
+            
+            self.assertEqual(player.number_of_games_played, 1)
+            self.assertEqual(player.opponent_average_rating, 400)
+            self.assertEqual(player.elo_rating,
+                             400+16 if i%2==0 else 400-16)
+            
+            
+    def test_submit_game_db_update_players_different_elos(self):
+        players, context = create_team()
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        players[0].elo_rating = 250
+        players[1].elo_rating = 300
+        players[2].elo_rating = 350
+        for i in range(3):
+            players[i].save()
+        self.client.post(reverse('elo_app:submit_game'), context)
+        self.client.post(reverse('elo_app:update_ratings'))
+        expected_ratings = [268, 282, 368, 382]
+        expected_av_ratings = [350, 300, 350, 300]
+        
+        for i in range(4):
+            player = Player.objects.get(pk=players[i].id)
+            player_ratings = player.playerrating_set.all()
+            
+            self.assertEqual(len(player_ratings), 1)
+            self.assertEqual(player_ratings[0].player, player)
+            self.assertEqual(player_ratings[0].timestamp, timezone.now().date())
+            self.assertEqual(player_ratings[0].rating, expected_ratings[i])
+            
+            self.assertEqual(player.number_of_games_played, 1)
+            self.assertEqual(player.opponent_average_rating, expected_av_ratings[i])
+            self.assertEqual(player.elo_rating, expected_ratings[i])
+        
+    def test_submit_game_db_player_rating_cannot_drop_below_100(self):
+        players, context = create_team()
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        for i in range(4):
+            players[i].elo_rating = 100
+            players[i].save()
+        self.client.post(reverse('elo_app:submit_game'), context)
+        self.client.post(reverse('elo_app:update_ratings'))
+        for i in range(4):
+            player = Player.objects.get(pk=players[i].id)
+            player_ratings = player.playerrating_set.all()
+            self.assertEqual(len(player_ratings), 1)
+            self.assertGreaterEqual(player.elo_rating, 100)
