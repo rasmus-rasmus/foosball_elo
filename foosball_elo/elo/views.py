@@ -1,5 +1,3 @@
-import decimal
-from typing import Any
 from django.db import models
 from django.db.models.query import QuerySet
 from django.db.utils import IntegrityError
@@ -8,8 +6,12 @@ from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpRes
 from django.views import View, generic
 from django.urls import reverse
 from django.utils import timezone
+
 from .models import Player, Game, PlayerRating
 
+import decimal
+from typing import Any
+import datetime
 
 #############
 ## HELPERS ##
@@ -53,6 +55,10 @@ class InvalidTeamsError(Exception):
         
     def __str__(self):
         return "Invalid teams: {} plays on both teams".format(self.value)    
+    
+class InvalidDateEror(Exception):
+    def __str__(self):
+        return "Game cannot be in the future."
 
 
 ###########
@@ -109,6 +115,8 @@ def submit_game(request: HttpRequest):
         invalid_team_member = []
         if not are_valid_teams(team_1_defense, team_1_attack, team_2_defense, team_2_attack, invalid_team_member):
             raise InvalidTeamsError(invalid_team_member[0])
+        if datetime.datetime.strptime(date, "%Y-%m-%d").date() > timezone.now().date():
+            raise InvalidDateEror
     except KeyError:
         return render(request, 'elo/submit_game_form.html', {
             'all_players_list': Player.objects.order_by('player_name'),
@@ -120,6 +128,11 @@ def submit_game(request: HttpRequest):
             'error_message': str(error)
         })
     except InvalidTeamsError as error:
+        return render(request, 'elo/submit_game_form.html', {
+            'all_players_list': Player.objects.order_by('player_name'),
+            'error_message': str(error)
+        })
+    except InvalidDateEror as error:
         return render(request, 'elo/submit_game_form.html', {
             'all_players_list': Player.objects.order_by('player_name'),
             'error_message': str(error)

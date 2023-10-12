@@ -1,8 +1,11 @@
 from django.test import TestCase
 from django.urls import reverse
-from .models import Player, Game, PlayerRating
-import datetime
 from django.utils import timezone
+
+from .models import Player, Game, PlayerRating
+from .views import InvalidTeamsError, InvalidScoreError, InvalidDateEror
+
+import datetime
 
 
 #############
@@ -47,6 +50,7 @@ class IndexTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, player.player_name)
         
+        
     def test_two_players(self):
         player1 = create_player("player1")
         player2= create_player("player2", 200)
@@ -55,6 +59,7 @@ class IndexTest(TestCase):
         self.assertQuerySetEqual(response.context['top_5_list'], [player1, player2])
         self.assertContains(response, player1.player_name)
         self.assertContains(response, player2.player_name)
+        
         
     def test_more_than_five_players(self):
         players = []
@@ -65,6 +70,7 @@ class IndexTest(TestCase):
         self.assertQuerySetEqual(response.context['top_5_list'],
                                  [players[i] for i in range(9, 4, -1)])
         
+        
 class AllViewTest(TestCase):
     
     def test_one_player(self):
@@ -72,6 +78,7 @@ class AllViewTest(TestCase):
         response = self.client.get(reverse('elo_app:all'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, player.player_name)
+        
         
     def test_two_players(self):
         player2= create_player("player2", 200)
@@ -81,6 +88,7 @@ class AllViewTest(TestCase):
         self.assertQuerySetEqual(response.context['player_list'], [player1, player2])
         self.assertContains(response, player1.player_name)
         self.assertContains(response, player2.player_name)
+        
         
     def test_ten_players(self):
         players = []
@@ -92,19 +100,23 @@ class AllViewTest(TestCase):
         self.assertQuerySetEqual(response.context['player_list'],
                                  players[::-1])
 
+
 class DetailTest(TestCase):
+
     def test_detail_view_no_player(self):
         response = self.client.get(reverse('elo_app:player_detail', args=(1,)))
         self.assertEqual(response.status_code, 404)
         
 
 class SubmitFormGameTest(TestCase):
+
     def test_submit_form_no_players(self):
         response = self.client.get(reverse('elo_app:submit_form_game'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Team 1")
         self.assertContains(response, "Team 2")
         self.assertQuerySetEqual(response.context['all_players_list'], [])
+    
         
     def test_submit_form_two_players(self):
         playerB = create_player("playerB")
@@ -113,17 +125,21 @@ class SubmitFormGameTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['all_players_list'], [playerA, playerB])
         
+
 class SubmitGameTest(TestCase):
+
     def test_submit_game_get_method(self):
         response = self.client.get(reverse('elo_app:submit_game'))
         self.assertEqual(response.status_code, 405)
     
+
     def test_submit_game_no_players(self):
         response = self.client.post(reverse('elo_app:submit_game'))
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields')
         self.assertContains(response, 'Please fill out all fields')
         
+
     def test_submit_game_two_players(self):
         player1 = create_player("player1")
         player2 = create_player("player2")
@@ -132,12 +148,14 @@ class SubmitGameTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields')
         
+
     def test_submit_game_valid_team_no_date(self):
         context = create_team()[1]
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields')
         
+
     def test_submit_game_valid_team_invalid_score(self):
         context = create_team()[1]
         context['date'] = timezone.now().date()
@@ -145,8 +163,19 @@ class SubmitGameTest(TestCase):
         context['team_2_score'] = 7
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 200)
-        self.assertQuerySetEqual(response.context['error_message'], "Indecisive scores: ({}, {}).".format(5, 7))
+        self.assertQuerySetEqual(response.context['error_message'], str(InvalidScoreError(5, 7)))
+    
+
+    def test_submit_game_future_date(self):
+        context = create_team()[1]
+        context['date'] = timezone.now().date() + datetime.timedelta(days=1)
+        context['team_1_score'] = 5
+        context['team_2_score'] = 10
+        response = self.client.post(reverse('elo_app:submit_game'), context)
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['error_message'], str(InvalidDateEror()))
         
+
     def test_submit_game_invalid_team(self):
         context = create_team()[1]
         context['date'] = timezone.now()
@@ -157,8 +186,9 @@ class SubmitGameTest(TestCase):
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 
-                                 "Invalid teams: {} plays on both teams".format(Player.objects.get(pk=context['team_1_defense'])))
+                                 str(InvalidTeamsError(Player.objects.get(pk=context['team_1_defense']).player_name)))
         
+
     def test_submit_game_invalid_team_v2(self):
         context = create_team()[1]
         context['date'] = timezone.now()
@@ -169,8 +199,9 @@ class SubmitGameTest(TestCase):
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 
-                                 "Invalid teams: {} plays on both teams".format(Player.objects.get(pk=context['team_1_defense'])))
+                                 str(InvalidTeamsError(Player.objects.get(pk=context['team_1_defense']).player_name)))
         
+
     def test_submit_valid_game(self):
         context = create_team()[1]
         context['date'] = timezone.now().date()
@@ -179,6 +210,7 @@ class SubmitGameTest(TestCase):
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 302)
         
+
     def test_submit_valid_game_reverse_score(self):
         context = create_team()[1]
         context['date'] = timezone.now().date()
@@ -187,6 +219,7 @@ class SubmitGameTest(TestCase):
         response = self.client.post(reverse('elo_app:submit_game'), context)
         self.assertEqual(response.status_code, 302)
         
+
     def test_submit_game_db_create_game(self):
         players, context = create_team()
         context['date'] = timezone.now().date()
@@ -203,6 +236,7 @@ class SubmitGameTest(TestCase):
         self.assertEqual(game.team_2_score, 5)
         self.assertEqual(game.date_played, timezone.now().date())
         
+
     #TODO: Test correct rejection of games submitted with a future date.
         
         
@@ -265,12 +299,14 @@ class SubmitPlayerTest(TestCase):
         response = self.client.get(reverse('elo_app:submit_player'))
         self.assertEqual(response.status_code, 405)
     
+
     def test_submit_player_username_field_blank(self):
         response = self.client.post(reverse('elo_app:submit_player'), data={'player_name': ''})
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 
                                  'Please provide a non-empty username using only upper case, lower case, numbers and underscore.')
         
+
     def test_submit_player_invalid_character(self):
         response1 = self.client.post(reverse('elo_app:submit_player'), data={'player_name': '@lexander'})
         response2 = self.client.post(reverse('elo_app:submit_player'), data={'player_name': 'l&mpersand'})
@@ -280,12 +316,14 @@ class SubmitPlayerTest(TestCase):
             self.assertQuerySetEqual(response.context['error_message'], 
                                  'Please provide a non-empty username using only upper case, lower case, numbers and underscore.')
         
+
     def test_submit_player_username_already_in_use(self):
         create_player('player1')
         response = self.client.post(reverse('elo_app:submit_player'), data={'player_name': 'player1'})
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Username already in use.') 
         
+
     def test_submit_player_no_context(self):
         response = self.client.post(reverse('elo_app:submit_player'))
         self.assertEqual(response.status_code, 200)
@@ -301,6 +339,7 @@ class SubmitPlayerTest(TestCase):
         self.assertEqual(player.opponent_average_rating, 0)
         self.assertEqual(player.number_of_games_played, 0)
         
+
     def test_submit_initial_playerrating_in_db(self):
         response = self.client.post(reverse('elo_app:submit_player'), data={'player_name': 'player1'})        
         self.assertEqual(response.status_code, 302)
