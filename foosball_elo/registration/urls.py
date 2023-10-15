@@ -14,13 +14,14 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, reverse_lazy
 from django.contrib.auth.views import LoginView
 
+from . import views
 
+app_name='registration'
 urlpatterns = [
-    path("admin/", admin.site.urls, name="admin"),
-    path("elo/", include('elo.urls'), name="elo"),
-    path("", include('registration.urls'), name="registration")
+    path("", LoginView.as_view(template_name='registration/login.html', next_page=reverse_lazy('elo_app:index')), name="login"),
+    path('player/submit_form/', views.SubmitPlayerView.as_view(), name='submit_form_player'), 
+    path('player/submit/', views.submit_player, name='submit_player'),
 ]

@@ -1,0 +1,35 @@
+<!doctype html>
+
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8">
+        <title>Submit player form</title>
+    </head>
+    <body>
+        <div>
+            <form action="{% url 'registration:submit_player' %}" method="post">
+                {% csrf_token %}
+                <fieldset>
+                    <legend><h1>Sign up!</h1></legend>
+                    {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+                    <div>
+                        <label for="name">Your username: </label>
+                        <input type="text" name="player_name" id="player_name">
+                    </div>
+                    <div>
+                        <label for="email"> Your email:</label>
+                        <input type="email" name="email" id="email">
+                    </div>
+                    <div>
+                        <label for="password"> Choose a password:</label>
+                        <input type="password" name="password" id="password">
+                    </div>
+                </fieldset>
+                <input type="submit" value="Submit">
+            </form>
+        </div>
+        <br>
+        <a href={% url 'registration:login'%}>Back to home page</a>
+    </body>
+
+</html>

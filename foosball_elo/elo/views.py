@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models.query import QuerySet
 from django.db.utils import IntegrityError
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed
 from django.views import View, generic
 from django.urls import reverse
@@ -89,8 +89,8 @@ class SubmitGameView(generic.ListView):
     def get_queryset(self):
         return Player.objects.order_by('player_name')
     
-class SubmitPlayerView(generic.TemplateView):
-    template_name = 'elo/submit_player_form.html'
+# class SubmitPlayerView(generic.TemplateView):
+#     template_name = 'elo/submit_player_form.html'
     
 class PlayerDetailView(generic.DetailView):
     model = Player
@@ -159,37 +159,37 @@ def submit_game(request: HttpRequest):
     
     return HttpResponseRedirect(reverse('elo_app:index'))
 
-def submit_player(request: HttpRequest):
-    if not request.method == 'POST':
-        return HttpResponseNotAllowed(['POST'])
-    try:
-        if len(request.POST['player_name']) == 0:
-            raise ValueError
+# def submit_player(request: HttpRequest):
+#     if not request.method == 'POST':
+#         return HttpResponseNotAllowed(['POST'])
+#     try:
+#         if len(request.POST['player_name']) == 0:
+#             raise ValueError
         
-        accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        accepted_characters += accepted_characters.lower()
-        accepted_characters += "1234567890_"
-        for character in request.POST['player_name']:
-            if not character in accepted_characters:
-                raise ValueError
+#         accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+#         accepted_characters += accepted_characters.lower()
+#         accepted_characters += "1234567890_"
+#         for character in request.POST['player_name']:
+#             if not character in accepted_characters:
+#                 raise ValueError
             
-        player = Player.objects.create(player_name=request.POST["player_name"])
-        player_rating = PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=400)
-    except IntegrityError:
-        return render(request, 
-                      'elo/submit_player_form.html', 
-                      {'error_message': 'Username already in use.'})
-    except ValueError:
-        return render(request, 
-                      'elo/submit_player_form.html', 
-                      {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore.'})
-    except KeyError:
-        return render(request,
-                      'elo/submit_player_form.html',
-                      {'error_message': 'Something went wrong, please try again.'})
+#         player = Player.objects.create(player_name=request.POST["player_name"])
+#         player_rating = PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=400)
+#     except IntegrityError:
+#         return render(request, 
+#                       'elo/submit_player_form.html', 
+#                       {'error_message': 'Username already in use.'})
+#     except ValueError:
+#         return render(request, 
+#                       'elo/submit_player_form.html', 
+#                       {'error_message': 'Please provide a non-empty username using only upper case, lower case, numbers and underscore.'})
+#     except KeyError:
+#         return render(request,
+#                       'elo/submit_player_form.html',
+#                       {'error_message': 'Something went wrong, please try again.'})
     
-    return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
-                                {'ratings': player.playerrating_set.all()})
+#     return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
+#                                 {'ratings': player.playerrating_set.all()})
 
 def update_ratings(request: HttpRequest):
     if not request.method == 'POST':
