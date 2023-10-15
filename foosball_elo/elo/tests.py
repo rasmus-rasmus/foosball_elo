@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
 
 from .models import Player, Game, PlayerRating
 from .views import InvalidTeamsError, InvalidScoreError, InvalidDateEror
@@ -236,73 +238,7 @@ class SubmitGameTest(TestCase):
         self.assertEqual(game.team_2_score, 5)
         self.assertEqual(game.date_played, timezone.now().date())
 
-
-    
-# class SubmitFormPlayerTest(TestCase):
-#     def test_submit_player_form(self):
-#         response = self.client.get(reverse('elo_app:submit_form_player'))
-#         self.assertEqual(response.status_code, 200)
-#         self.assertContains(response, "Submit a game")
-#         self.assertContains(response, "Back to home page")
         
-    
-# class SubmitPlayerTest(TestCase):
-#     def test_submit_player_get_method(self):
-#         response = self.client.get(reverse('elo_app:submit_player'))
-#         self.assertEqual(response.status_code, 405)
-    
-
-#     def test_submit_player_username_field_blank(self):
-#         response = self.client.post(reverse('elo_app:submit_player'), data={'player_name': ''})
-#         self.assertEqual(response.status_code, 200)
-#         self.assertQuerySetEqual(response.context['error_message'], 
-#                                  'Please provide a non-empty username using only upper case, lower case, numbers and underscore.')
-        
-
-#     def test_submit_player_invalid_character(self):
-#         response1 = self.client.post(reverse('elo_app:submit_player'), data={'player_name': '@lexander'})
-#         response2 = self.client.post(reverse('elo_app:submit_player'), data={'player_name': 'l&mpersand'})
-#         response3 = self.client.post(reverse('elo_app:submit_player'), data={'player_name': '$uperhero'})
-#         for response in (response1, response2, response3):
-#             self.assertEqual(response.status_code, 200)
-#             self.assertQuerySetEqual(response.context['error_message'], 
-#                                  'Please provide a non-empty username using only upper case, lower case, numbers and underscore.')
-        
-
-#     def test_submit_player_username_already_in_use(self):
-#         create_player('player1')
-#         response = self.client.post(reverse('elo_app:submit_player'), data={'player_name': 'player1'})
-#         self.assertEqual(response.status_code, 200)
-#         self.assertQuerySetEqual(response.context['error_message'], 'Username already in use.') 
-        
-
-#     def test_submit_player_no_context(self):
-#         response = self.client.post(reverse('elo_app:submit_player'))
-#         self.assertEqual(response.status_code, 200)
-#         self.assertQuerySetEqual(response.context['error_message'], 'Something went wrong, please try again.')
-        
-        
-#     def test_submit_player_player_in_db(self):
-#         response = self.client.post(reverse('elo_app:submit_player'), data={'player_name': 'player1'})        
-#         self.assertEqual(response.status_code, 302)
-#         self.assertEqual(len(Player.objects.all()), 1)
-#         player=Player.objects.get(player_name='player1')
-#         self.assertEqual(player.elo_rating, 400)
-#         self.assertEqual(player.opponent_average_rating, 0)
-#         self.assertEqual(player.number_of_games_played, 0)
-        
-
-#     def test_submit_initial_playerrating_in_db(self):
-#         response = self.client.post(reverse('elo_app:submit_player'), data={'player_name': 'player1'})        
-#         self.assertEqual(response.status_code, 302)
-#         self.assertEqual(len(PlayerRating.objects.all()), 1)
-#         player=Player.objects.get(player_name='player1')
-#         rating = PlayerRating.objects.get(player=player)
-#         self.assertEqual(rating.player.player_name, 'player1')
-#         self.assertEqual(rating.timestamp, timezone.now().date())
-#         self.assertEqual(rating.rating, 400)
-        
-
 class TestUpdateScores(TestCase):
     
     def test_submit_game_no_update(self):
@@ -319,13 +255,32 @@ class TestUpdateScores(TestCase):
             self.assertEqual(player.opponent_average_rating, 400)
             self.assertEqual(player.elo_rating, 400)
             
-    
-    def test_submit_game_db_update_players_equal_elos(self):
+            
+    def test_submit_game_update_ratings_no_superuser(self):
         players, context = create_team()
         context['date'] = timezone.now().date()
         context['team_1_score'] = 10
         context['team_2_score'] = 5
         self.client.post(reverse('elo_app:submit_game'), context)
+        self.client.post(reverse('elo_app:update_ratings'))
+        for i in range(4):
+            player = Player.objects.get(pk=players[i].id)
+            player_ratings = player.playerrating_set.all()
+            self.assertEqual(len(player_ratings), 0)
+            self.assertEqual(player.number_of_games_played, 1)
+            self.assertEqual(player.opponent_average_rating, 400)
+            self.assertEqual(player.elo_rating, 400)
+            
+    
+    def test_submit_game_and_update_ratings_equal_elos(self):
+        players, context = create_team()
+        context['date'] = timezone.now().date()
+        context['team_1_score'] = 10
+        context['team_2_score'] = 5
+        self.client.post(reverse('elo_app:submit_game'), context)
+        
+        User.objects.create_superuser(username='admin', email='admin@admin.com', password='nimda')
+        self.client.login(username='admin', password='nimda')
         self.client.post(reverse('elo_app:update_ratings'))
         
         for i in range(4):
@@ -344,7 +299,7 @@ class TestUpdateScores(TestCase):
                              400+16 if i%2==0 else 400-16)
             
             
-    def test_submit_game_db_update_players_different_elos(self):
+    def test_submit_game_and_update_players_different_elos(self):
         players, context = create_team()
         context['date'] = timezone.now().date()
         context['team_1_score'] = 10
@@ -355,7 +310,11 @@ class TestUpdateScores(TestCase):
         for i in range(3):
             players[i].save()
         self.client.post(reverse('elo_app:submit_game'), context)
+        
+        User.objects.create_superuser(username='admin', email='admin@admin.com', password='nimda')
+        self.client.login(username='admin', password='nimda')
         self.client.post(reverse('elo_app:update_ratings'))
+        
         expected_ratings = [268, 282, 368, 382]
         expected_av_ratings = [350, 300, 350, 300]
         
@@ -371,8 +330,9 @@ class TestUpdateScores(TestCase):
             self.assertEqual(player.number_of_games_played, 1)
             self.assertEqual(player.opponent_average_rating, expected_av_ratings[i])
             self.assertEqual(player.elo_rating, expected_ratings[i])
+            
         
-    def test_submit_game_db_player_rating_cannot_drop_below_100(self):
+    def test_player_rating_cannot_drop_below_100(self):
         players, context = create_team()
         context['date'] = timezone.now().date()
         context['team_1_score'] = 10
@@ -381,7 +341,11 @@ class TestUpdateScores(TestCase):
             players[i].elo_rating = 100
             players[i].save()
         self.client.post(reverse('elo_app:submit_game'), context)
+        
+        User.objects.create_superuser(username='admin', email='admin@admin.com', password='nimda')
+        self.client.login(username='admin', password='nimda')
         self.client.post(reverse('elo_app:update_ratings'))
+        
         for i in range(4):
             player = Player.objects.get(pk=players[i].id)
             player_ratings = player.playerrating_set.all()
