@@ -4,6 +4,7 @@ from django.http import HttpRequest, HttpResponseRedirect, HttpResponseNotAllowe
 from django.db.utils import IntegrityError
 from django.utils import timezone
 from django.urls import reverse
+from django.contrib.auth.models import User
 
 from elo.models import Player, PlayerRating
 
@@ -26,8 +27,11 @@ def submit_player(request: HttpRequest):
         for character in request.POST['player_name']:
             if not character in accepted_characters:
                 raise ValueError
-            
-        player = Player.objects.create(player_name=request.POST["player_name"])
+        
+        user = User.objects.create_user(username=request.POST['player_name'],
+                                        email=request.POST['email'],
+                                        password=request.POST['password'])
+        player = Player.objects.create(player_name=request.POST["player_name"], user=user)
         player_rating = PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=400)
     except IntegrityError:
         return render(request, 

@@ -7,18 +7,21 @@
     </head>
     <body>
         <h1>Welcome to the RD8 foosball elo ranking page!</h1>
-        <h2>Please log in or create a new user</h2>
         {% if form.errors %}
         <p>Your username and password didn't match. Please try again.</p>
         {% endif %}
 
         {% if next %}
             {% if user.is_authenticated %}
-            <p>Your account doesn't have access to this page. To proceed,
-            please login with an account that has access.</p>
+                <p>
+                    This action requires admin access. To proceed,
+                    please login with an account that has admin privileges.
+                </p>
             {% else %}
-            <p>Please login to see this page.</p>
+                <p>Please login to see this page.</p>
             {% endif %}
+        {% else %}
+            <p>Please log in or create a new user</p>
         {% endif %}
 
         <form method="post" action="{% url 'registration:login' %}">
@@ -39,6 +42,7 @@
         </form>
 
         <p><a href="{% url 'registration:submit_form_player' %}">Sign up!</a></p>
+        <p><a href="{% url 'elo_app:index' %}">Hall of Fame</a></p>
         {# TODO: IMPLEMENT #}
         {% comment %} <p><a href="{% url 'password_reset' %}">Lost password?</a></p> {% endcomment %}
     </body>

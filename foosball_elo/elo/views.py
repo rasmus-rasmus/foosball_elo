@@ -4,9 +4,9 @@ from django.db.utils import IntegrityError
 from django.shortcuts import render
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed
 from django.views import View, generic
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 
 from .models import Player, Game, PlayerRating
 
@@ -99,9 +99,13 @@ class PlayerDetailView(generic.DetailView):
     def get_queryset(self) -> QuerySet[Player]:
         return Player.objects.all()
 
+@user_passes_test(lambda u:u.is_authenticated, login_url=reverse_lazy('registration:login'))
 def submit_game(request: HttpRequest):
     if not request.method == 'POST':
-        return HttpResponseNotAllowed(['POST'])
+        return render(request, 'elo/submit_game_form.html', {
+            'all_players_list': Player.objects.order_by('player_name'),
+            'error_message': 'Please try again'
+        })
     data = request.POST
     try:
         team_1_defense = Player.objects.get(pk=data['team_1_defense'])
@@ -160,10 +164,10 @@ def submit_game(request: HttpRequest):
     
     return HttpResponseRedirect(reverse('elo_app:index'))
 
-@staff_member_required
+@user_passes_test(lambda u:u.is_staff, login_url=reverse_lazy('registration:login'))
 def update_ratings(request: HttpRequest):
     if not request.method == 'POST':
-        return HttpResponseNotAllowed(['POST'])
+        return HttpResponseRedirect(reverse('elo_app:index'))
     unrecorded_games = Game.objects.filter(updates_performed=False)
     diff_dict = {}
     for game in unrecorded_games:

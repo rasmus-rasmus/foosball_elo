@@ -70,5 +70,9 @@ class SubmitPlayerTest(TestCase):
         self.assertEqual(rating.player.player_name, 'player1')
         self.assertEqual(rating.timestamp, timezone.now().date())
         self.assertEqual(rating.rating, 400)
+        
+    #TODO: Test invalid e-mail
+    #TODO: Test e-mail already in use
+    
 
 

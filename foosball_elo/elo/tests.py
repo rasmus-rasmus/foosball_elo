@@ -237,6 +237,8 @@ class SubmitGameTest(TestCase):
         self.assertEqual(game.team_1_score, 10)
         self.assertEqual(game.team_2_score, 5)
         self.assertEqual(game.date_played, timezone.now().date())
+        
+    #TODO: Test user access
 
         
 class TestUpdateScores(TestCase):
