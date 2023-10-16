@@ -9,9 +9,9 @@
     </head>
     <body>
         <h2>You are looking at details for {{ player.player_name }}</h2>
-        <a href={% url 'elo_app:index'%}>Back to home page</a>
+        <a href={% url 'elo_app:index'%}>Back to overview</a>
         {% if 'ratings' %}
-            <h2>The ratings are there</h2>
+            <p>The ratings are there</p>
         {% endif %}
     </body>
 

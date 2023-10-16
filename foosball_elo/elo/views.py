@@ -104,7 +104,7 @@ def submit_game(request: HttpRequest):
     if not request.method == 'POST':
         return render(request, 'elo/submit_game_form.html', {
             'all_players_list': Player.objects.order_by('player_name'),
-            'error_message': 'Please try again'
+            'error_message': 'Something went wrong. Please try again'
         })
     data = request.POST
     try:
