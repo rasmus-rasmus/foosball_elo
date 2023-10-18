@@ -12,7 +12,7 @@ class Player(models.Model):
     number_of_games_played = models.IntegerField(default=0)
     
     def update_rating(self) -> int:
-        self.elo_rating = self.playerrating_set.all[0]
+        self.elo_rating = self.playerrating_set.all()[0]
         return self.elo_rating
     
     def __str__(self):
@@ -77,4 +77,4 @@ class PlayerRating(models.Model):
     rating = models.IntegerField('elo rating')
     
     class Meta:
-        ordering = ['player', '-timestamp']
+        ordering = ['player', 'timestamp']

@@ -5,14 +5,86 @@
 <html lang="en-US">
     <head>
         <meta charset="utf-8">
-        <title>Player</title>
+
+        <!--Chart js-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.js" integrity="sha256-Uv9BNBucvCPipKQ2NS9wYpJmi8DTOEfTA/nH2aoJALw=" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.css" integrity="sha256-aa0xaJgmK/X74WM224KMQeNQC2xYKwlAt08oZqjeF0E=" crossorigin="anonymous" />
+
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+        <title>Details</title>
     </head>
     <body>
-        <h2>You are looking at details for {{ player.player_name }}</h2>
+        <h2>{{ player.player_name }} statistics</h2>
+        <script>
+            $(document).ready(function() {
+                new Chart(
+                    document.getElementById('stats'),
+                    {
+                        type: 'line',
+                        data: {
+                            labels: [{% for data in player.playerrating_set.all %}'{{ data.timestamp }}',{% endfor %}],
+                            datasets: 
+                            [
+                            {
+                                label: 'Rating history',
+                                data: [
+                                        {% for data in player.playerrating_set.all %}
+                                            {{ data.rating }},
+                                        {% endfor %}
+                                      ],
+                                fill: false,
+                                borderColor: 'rgb(71, 185, 88)',
+                                tension: 0.1,
+                                pointHitRadius: 10,
+                            },
+                            {
+                                label: 'High score',
+                                data: [
+                                        {% for data in player.playerrating_set.all %}
+                                            {{ high_score }},
+                                        {% endfor %}
+                                      ],
+                                fill: false,
+                                borderColor: 'rgba(255, 0, 0, 0.5)',
+                                borderDash: [10, 5],
+                                borderWidth: 1,
+                                pointRadius: 0,
+                                pointHitRadius: 0,
+                            }
+                            ]
+                        }
+                    }
+                    );
+                }
+            );
+        </script>
+        <div>
+            <table border=1>
+                <thead>
+                    <tr>
+                        <th>High score</th>
+                        <th>Opponent av. rating</th>
+                        <th>Highest rated opponent</th>
+                        <th>Games played</th>
+                        <th>Eggs dealt</th>
+                        <th>Eggs collected</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ high_score }}</td>
+                        <td>{{ player.opponent_average_rating }}</td>
+                        <td>{{ highest_opponent_rating }}</td>
+                        <td>{{ player.number_of_games_played }}</td>
+                        <td>{{ eggs_dealt_count }}</td>
+                        <td>{{ eggs_collected_count }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="width: 700px;"><canvas id="stats"></canvas></div><br/>
         <a href={% url 'elo_app:index'%}>Back to overview</a>
-        {% if 'ratings' %}
-            <p>The ratings are there</p>
-        {% endif %}
     </body>
 
 </html>

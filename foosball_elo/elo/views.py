@@ -1,4 +1,4 @@
-from django.db import models
+from django.db.models import Max
 from django.db.models.query import QuerySet
 from django.db.utils import IntegrityError
 from django.shortcuts import render
@@ -42,6 +42,44 @@ def are_valid_teams(team_1_defense : Player,
         invalid_team_member.append(team_1_attack.player_name)
         return False
     return True
+
+def get_game_statistics(player: Player) -> dict[str, int]:
+    # Use sets to avoid one-player-teams (i.e., attack=defense) to
+    # be counted twice
+    games_as_team_1 = set(Game.objects.filter(team_1_defense=player))
+    defense_games_count = len(games_as_team_1)
+    games_as_team_1.union(set(Game.objects.filter(team_1_attack=player)))
+    attack_games_count = len(games_as_team_1) - defense_games_count
+    
+    games_as_team_2 = set(Game.objects.filter(team_2_defense=player))
+    defense_games_count += len(games_as_team_2)
+    games_as_team_2.union(set(Game.objects.filter(team_2_attack=player)))
+    attack_games_count += len(games_as_team_2) - defense_games_count
+    
+    highest_opponent_rating = 0
+    eggs_dealt_count = 0
+    eggs_collected_count = 0
+    for game in games_as_team_1:
+        opponent_rating = .5 * (game.team_2_defense.elo_rating + game.team_2_attack.elo_rating)
+        highest_opponent_rating = max(highest_opponent_rating, opponent_rating)
+        eggs_dealt_count += int(game.team_2_score == 0)
+        eggs_collected_count += int(game.team_1_score == 0)
+        
+    for game in games_as_team_2:
+        opponent_rating = .5 * (game.team_1_defense.elo_rating + game.team_1_attack.elo_rating)
+        highest_opponent_rating = max(highest_opponent_rating, opponent_rating)
+        eggs_dealt_count += int(game.team_1_score == 0)
+        eggs_collected_count += int(game.team_2_score == 0)
+        
+    out = {}
+    out['highest_opponent_rating'] = highest_opponent_rating
+    out['defense_games_count'] = defense_games_count
+    out['attack_games_count'] = attack_games_count
+    out['eggs_dealt_count'] = eggs_dealt_count
+    out['eggs_collected_count'] = eggs_collected_count
+    
+    return out
+           
     
 class InvalidScoreError(Exception):
     def __init__(self, score1, score2):
@@ -77,6 +115,7 @@ class IndexView(generic.ListView):
     def get_queryset(self) -> QuerySet[Player]:
         return Player.objects.order_by('-elo_rating')[:5]
     
+    
 class AllView(generic.ListView):
     model = Player
     
@@ -90,14 +129,18 @@ class SubmitGameView(generic.ListView):
     def get_queryset(self):
         return Player.objects.order_by('player_name')
     
-# class SubmitPlayerView(generic.TemplateView):
-#     template_name = 'elo/submit_player_form.html'
     
 class PlayerDetailView(generic.DetailView):
     model = Player
+    
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx['high_score'] = self.object.playerrating_set.aggregate(Max('rating'))['rating__max']
+        player_stats = get_game_statistics(self.object)
+        for key in player_stats:
+            ctx[key] = player_stats[key]
+        return ctx
 
-    def get_queryset(self) -> QuerySet[Player]:
-        return Player.objects.all()
 
 @user_passes_test(lambda u:u.is_authenticated, login_url=reverse_lazy('registration:login'))
 def submit_game(request: HttpRequest):

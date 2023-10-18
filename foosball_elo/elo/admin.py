@@ -19,6 +19,7 @@ class GameAdmin(admin.ModelAdmin):
     
 class PlayerRatingAdmin(admin.ModelAdmin):
     list_display = ['player', 'timestamp', 'rating']
+    
 
 # Register your models here.
 admin.site.register(Game, GameAdmin)

@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 
 from elo.models import Player, PlayerRating
+from datetime import timedelta
 
 # Create your views here.
 
@@ -32,7 +33,13 @@ def submit_player(request: HttpRequest):
                                         email=request.POST['email'],
                                         password=request.POST['password'])
         player = Player.objects.create(player_name=request.POST["player_name"], user=user)
-        player_rating = PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=400)
+        
+        # Ratings will be updates on sundays, so first rating has its timestamp set
+        # to last sunday from today's date.
+        date = timezone.now().date()
+        while (date.weekday() != 6):
+            date -= timedelta(days=1)
+        PlayerRating.objects.create(player=player, timestamp=date, rating=400)
     except IntegrityError:
         return render(request, 
                       'registration/submit_player_form.html', 
