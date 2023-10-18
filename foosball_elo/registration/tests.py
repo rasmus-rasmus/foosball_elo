@@ -1,11 +1,15 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 from elo.models import Player, PlayerRating
 
+from datetime import timedelta
+
 def create_player(name : str, rating : int = 400):
-    return Player.objects.create(player_name=name, elo_rating=rating)
+    user = User.objects.create_user(username=name, email="player@player.com", password=name[::-1])
+    return Player.objects.create(player_name=name, elo_rating=rating, user=user)
 
 class SubmitFormPlayerTest(TestCase):
     def test_submit_player_form(self):
@@ -40,7 +44,8 @@ class SubmitPlayerTest(TestCase):
 
     def test_submit_player_username_already_in_use(self):
         create_player('player1')
-        response = self.client.post(reverse('registration:submit_player'), data={'player_name': 'player1'})
+        form_data = {'player_name': 'player1', 'email': 'player1@player1.com', 'password': '1reyalp'}
+        response = self.client.post(reverse('registration:submit_player'), data=form_data)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Username already in use.') 
         
@@ -48,11 +53,12 @@ class SubmitPlayerTest(TestCase):
     def test_submit_player_no_context(self):
         response = self.client.post(reverse('registration:submit_player'))
         self.assertEqual(response.status_code, 200)
-        self.assertQuerySetEqual(response.context['error_message'], 'Something went wrong, please try again.')
+        self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields')
         
         
     def test_submit_player_player_in_db(self):
-        response = self.client.post(reverse('registration:submit_player'), data={'player_name': 'player1'})        
+        form_data = {'player_name': 'player1', 'email': 'player1@player1.com', 'password': '1reyalp'}
+        response = self.client.post(reverse('registration:submit_player'), data=form_data)          
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(Player.objects.all()), 1)
         player=Player.objects.get(player_name='player1')
@@ -62,13 +68,17 @@ class SubmitPlayerTest(TestCase):
         
 
     def test_submit_initial_playerrating_in_db(self):
-        response = self.client.post(reverse('registration:submit_player'), data={'player_name': 'player1'})        
+        form_data = {'player_name': 'player1', 'email': 'player1@player1.com', 'password': '1reyalp'}
+        response = self.client.post(reverse('registration:submit_player'), data=form_data)        
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(PlayerRating.objects.all()), 1)
         player=Player.objects.get(player_name='player1')
         rating = PlayerRating.objects.get(player=player)
+        last_sunday = timezone.now().date()
+        while last_sunday.weekday() != 6:
+            last_sunday -= timedelta(days=1)
         self.assertEqual(rating.player.player_name, 'player1')
-        self.assertEqual(rating.timestamp, timezone.now().date())
+        self.assertEqual(rating.timestamp, last_sunday)
         self.assertEqual(rating.rating, 400)
         
     #TODO: Test invalid e-mail

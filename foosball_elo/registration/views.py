@@ -5,6 +5,8 @@ from django.db.utils import IntegrityError
 from django.utils import timezone
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 
 from elo.models import Player, PlayerRating
 from datetime import timedelta
@@ -19,8 +21,11 @@ def submit_player(request: HttpRequest):
     if not request.method == 'POST':
         return HttpResponseNotAllowed(['POST'])
     try:
-        if len(request.POST['player_name']) == 0:
+        if len(request.POST['player_name']) == 0 or len(request.POST['password']) == 0:
             raise ValueError
+        
+        if not validate_email(request.POST['email']):
+            raise ValidationError
         
         accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         accepted_characters += accepted_characters.lower()
@@ -51,7 +56,11 @@ def submit_player(request: HttpRequest):
     except KeyError:
         return render(request,
                       'registration/submit_player_form.html',
-                      {'error_message': 'Something went wrong, please try again.'})
+                      {'error_message': 'Please fill out all fields'})
+    except ValidationError:
+        return render(request,
+                      'registration/submit_player_form.html',
+                      {'error_message': 'Please provide a valid email'})
     
     return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
                                 {'ratings': player.playerrating_set.all()})
