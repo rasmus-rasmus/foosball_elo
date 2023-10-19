@@ -20,9 +20,16 @@ class SubmitFormPlayerTest(TestCase):
 
 
 class SubmitPlayerTest(TestCase):
+    
     def test_submit_player_get_method(self):
         response = self.client.get(reverse('registration:submit_player'))
         self.assertEqual(response.status_code, 405)
+        
+
+    def test_submit_player_no_context(self):
+        response = self.client.post(reverse('registration:submit_player'))
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields.')
     
 
     def test_submit_player_username_field_blank(self):
@@ -33,13 +40,25 @@ class SubmitPlayerTest(TestCase):
         
 
     def test_submit_player_invalid_character(self):
-        response1 = self.client.post(reverse('registration:submit_player'), data={'player_name': '@lexander'})
-        response2 = self.client.post(reverse('registration:submit_player'), data={'player_name': 'l&mpersand'})
-        response3 = self.client.post(reverse('registration:submit_player'), data={'player_name': '$uperhero'})
+        form_data = {'player_name': '@lexander', 'email': 'player1@player1.com', 'password': 'secret'}
+        response1 = self.client.post(reverse('registration:submit_player'), data=form_data)
+        form_data['player_name'] = 'l&mpersand'
+        response2 = self.client.post(reverse('registration:submit_player'), data=form_data)
+        form_data['player_name'] = '$uperhero'
+        response3 = self.client.post(reverse('registration:submit_player'), data=form_data)
         for response in (response1, response2, response3):
             self.assertEqual(response.status_code, 200)
             self.assertQuerySetEqual(response.context['error_message'], 
                                  'Please provide a non-empty username using only upper case, lower case, numbers and underscore.')
+
+        
+    def test_submit_player_invalid_email(self):
+        form_data = {'player_name': 'player1', 'email': 'thisisnotavalidemail', 'password': '1reyalp'}
+        response = self.client.post(reverse('registration:submit_player'), data=form_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['error_message'],
+                                 'Please provide a valid email.')
+        self.assertContains(response, 'Please provide a valid email.')
         
 
     def test_submit_player_username_already_in_use(self):
@@ -48,12 +67,6 @@ class SubmitPlayerTest(TestCase):
         response = self.client.post(reverse('registration:submit_player'), data=form_data)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Username already in use.') 
-        
-
-    def test_submit_player_no_context(self):
-        response = self.client.post(reverse('registration:submit_player'))
-        self.assertEqual(response.status_code, 200)
-        self.assertQuerySetEqual(response.context['error_message'], 'Please fill out all fields')
         
         
     def test_submit_player_player_in_db(self):
@@ -81,7 +94,7 @@ class SubmitPlayerTest(TestCase):
         self.assertEqual(rating.timestamp, last_sunday)
         self.assertEqual(rating.rating, 400)
         
-    #TODO: Test invalid e-mail
+        
     #TODO: Test e-mail already in use
     
 

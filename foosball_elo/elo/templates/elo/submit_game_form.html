@@ -15,14 +15,14 @@
                     <div name="team1">
                         <strong>Team 1</strong><br>
                         <label for="team_1_defense">Team 1 defense: </label>
-                        <select id="team_1_defense" name="team_1_defense">
+                        <select id="team_1_defense" name="team_1_defense" required>
                             <option disabled selected value> -- select a player -- </option>
                             {% for player in all_players_list %}
                                 <option value={{ player.id }}>{{ player.player_name }}</option>
                             {% endfor %}
                         </select><br>
                         <label for="team_1_attack">Team 1 attack: </label>
-                        <select id="team_1_attack" name="team_1_attack">
+                        <select id="team_1_attack" name="team_1_attack" required>
                             <option disabled selected value> -- select a player -- </option>
                             {% for player in all_players_list %}
                                 <option value={{ player.id }}>{{ player.player_name }}</option>
@@ -32,14 +32,14 @@
                     <div name="team2">
                         <strong>Team 2</strong><br>
                         <label for="team_2_defense">Team 2 defense: </label>
-                        <select id="team_2_defense" name="team_2_defense">
+                        <select id="team_2_defense" name="team_2_defense" required>
                             <option disabled selected value> -- select a player -- </option>
                             {% for player in all_players_list %}
                                 <option value={{ player.id }}>{{ player.player_name }}</option>
                             {% endfor %}
                         </select><br>
                         <label for="team_2_attack">Team 2 attack: </label>
-                        <select id="team_2_attack" name="team_2_attack">
+                        <select id="team_2_attack" name="team_2_attack" required>
                             <option disabled selected value> -- select a player -- </option>
                             {% for player in all_players_list %}
                                 <option value={{ player.id }}>{{ player.player_name }}</option>
@@ -49,14 +49,14 @@
                     <div name="score">
                         <strong>Result</strong><br>
                         <label for="team_1_score">Team 1 score: </label>
-                        <select id="team_1_score" name="team_1_score">
+                        <select id="team_1_score" name="team_1_score" required>
                             <option value=0 selected>0</option>
                             {% for i in '0123456789'|make_list %}
                                 <option value={{ forloop.counter }}>{{ forloop.counter }}</option>
                             {% endfor %}
                         </select>
                         <label for="team_2_score">Team 2 score: </label>
-                        <select id="team_2_score" name="team_2_score">
+                        <select id="team_2_score" name="team_2_score" required>
                             <option value=0 selected>0</option>
                             {% for i in '0123456789'|make_list %}
                                 <option value={{ forloop.counter }}>{{ forloop.counter }}</option>
@@ -65,7 +65,7 @@
                     </div>
                     <div name="date">
                         <label for="date">Date of game: </label>
-                        <input type="date" name="date" id="date">
+                        <input type="date" name="date" id="date" required>
                     </div>
                 </fieldset>
                 <input type="submit" value="Submit">

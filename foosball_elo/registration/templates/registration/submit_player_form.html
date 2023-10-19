@@ -14,15 +14,15 @@
                     {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
                     <div>
                         <label for="name">Your username: </label>
-                        <input type="text" name="player_name" id="player_name">
+                        <input type="text" name="player_name" id="player_name" placeholder="Enter your username" required>
                     </div>
                     <div>
                         <label for="email"> Your email:</label>
-                        <input type="email" name="email" id="email">
+                        <input type="email" name="email" id="email" placeholder="Enter your email" required>
                     </div>
                     <div>
                         <label for="password"> Choose a password:</label>
-                        <input type="password" name="password" id="password">
+                        <input type="password" name="password" id="password" placeholder="Enter your password" required>
                     </div>
                 </fieldset>
                 <input type="submit" value="Submit">

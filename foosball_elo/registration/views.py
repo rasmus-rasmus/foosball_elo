@@ -24,8 +24,7 @@ def submit_player(request: HttpRequest):
         if len(request.POST['player_name']) == 0 or len(request.POST['password']) == 0:
             raise ValueError
         
-        if not validate_email(request.POST['email']):
-            raise ValidationError
+        validate_email(request.POST['email'])
         
         accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         accepted_characters += accepted_characters.lower()
@@ -56,11 +55,11 @@ def submit_player(request: HttpRequest):
     except KeyError:
         return render(request,
                       'registration/submit_player_form.html',
-                      {'error_message': 'Please fill out all fields'})
+                      {'error_message': 'Please fill out all fields.'})
     except ValidationError:
         return render(request,
                       'registration/submit_player_form.html',
-                      {'error_message': 'Please provide a valid email'})
+                      {'error_message': 'Please provide a valid email.'})
     
     return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
                                 {'ratings': player.playerrating_set.all()})
