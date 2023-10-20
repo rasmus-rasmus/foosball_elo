@@ -4,7 +4,7 @@ from .models import Game, Player, PlayerRating
 admin.site.site_header="Elo Administration"
 
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('player_name', 'id', 'elo_rating')
+    list_display = ('player_name', 'id')
     search_fields = ('player_name',)
     
 class GameAdmin(admin.ModelAdmin):
@@ -19,6 +19,8 @@ class GameAdmin(admin.ModelAdmin):
     
 class PlayerRatingAdmin(admin.ModelAdmin):
     list_display = ['player', 'timestamp', 'rating']
+    search_fields = ['player']
+    list_filter = ['player']
     
 
 # Register your models here.

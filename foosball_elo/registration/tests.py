@@ -9,7 +9,10 @@ from datetime import timedelta
 
 def create_player(name : str, rating : int = 400):
     user = User.objects.create_user(username=name, email="player@player.com", password=name[::-1])
-    return Player.objects.create(player_name=name, elo_rating=rating, user=user)
+    player = Player.objects.create(player_name=name, user=user)
+    date = timezone.now() - timedelta(days=7)
+    PlayerRating.objects.create(player=player, timestamp=date.date(), rating=rating)
+    return player
 
 class SubmitFormPlayerTest(TestCase):
     def test_submit_player_form(self):
@@ -75,9 +78,15 @@ class SubmitPlayerTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(Player.objects.all()), 1)
         player=Player.objects.get(player_name='player1')
-        self.assertEqual(player.elo_rating, 400)
-        self.assertEqual(player.opponent_average_rating, 0)
-        self.assertEqual(player.number_of_games_played, 0)
+        self.assertEqual(player.get_rating(), 400)
+
+        ratings = player.playerrating_set.all()
+        self.assertEqual(len(ratings), 1)
+        self.assertEqual(ratings[0].rating, 400)
+        date = timezone.now().date()
+        while date.weekday() != 6:
+            date -= timedelta(days=1)
+        self.assertEqual(ratings[0].timestamp, date)
         
 
     def test_submit_initial_playerrating_in_db(self):

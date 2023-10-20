@@ -67,6 +67,9 @@
                         <th>Opponent av. rating</th>
                         <th>Highest rated opponent</th>
                         <th>Games played</th>
+                        <th>Defense games</th>
+                        <th>Attack games</th>
+                        <th>Single games</th>
                         <th>Eggs dealt</th>
                         <th>Eggs collected</th>
                     </tr>
@@ -74,9 +77,12 @@
                 <tbody>
                     <tr>
                         <td>{{ high_score }}</td>
-                        <td>{{ player.opponent_average_rating }}</td>
+                        <td>{{ average_opponent_rating }}</td>
                         <td>{{ highest_opponent_rating }}</td>
-                        <td>{{ player.number_of_games_played }}</td>
+                        <td>{{ game_count }}</td>
+                        <td>{{ defense_games_count }}</td>
+                        <td>{{ attack_games_count }}</td>
+                        <td>{{ single_games_count }}</td>
                         <td>{{ eggs_dealt_count }}</td>
                         <td>{{ eggs_collected_count }}</td>
                     </tr>

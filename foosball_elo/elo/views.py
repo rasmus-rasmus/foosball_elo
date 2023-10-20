@@ -14,16 +14,10 @@ import decimal
 from typing import Any
 import datetime
 
+
 #############
 ## HELPERS ##
 #############
-
-def update_player_stats(player : Player, opponent_rating : float):
-    player.opponent_average_rating *= player.number_of_games_played
-    player.opponent_average_rating += decimal.Decimal(opponent_rating)
-    player.number_of_games_played += 1
-    player.opponent_average_rating /= player.number_of_games_played
-    player.save()
 
 def is_valid_score(score1 : int, score2 : int) -> bool:
     return (score1 == 10 and score2 < 10) or (score2 == 10 and score1 < 10)
@@ -42,39 +36,78 @@ def are_valid_teams(team_1_defense : Player,
         invalid_team_member.append(team_1_attack.player_name)
         return False
     return True
-
-def get_game_statistics(player: Player) -> dict[str, int]:
-    # Use sets to avoid one-player-teams (i.e., attack=defense) to
-    # be counted twice
-    games_as_team_1 = set(Game.objects.filter(team_1_defense=player))
-    defense_games_count = len(games_as_team_1)
-    games_as_team_1.union(set(Game.objects.filter(team_1_attack=player)))
-    attack_games_count = len(games_as_team_1) - defense_games_count
+     
     
-    games_as_team_2 = set(Game.objects.filter(team_2_defense=player))
-    defense_games_count += len(games_as_team_2)
-    games_as_team_2.union(set(Game.objects.filter(team_2_attack=player)))
-    attack_games_count += len(games_as_team_2) - defense_games_count
+"""
+    Returns updated (highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count)
+"""
+def compute_player_statistics(games : set[Game],
+                              player: Player,
+                              highest_opponent_rating: int,
+                              average_opponent_rating: int,
+                              eggs_dealt_count: int,
+                              eggs_collected_count: int) -> tuple[int]:
+    for game in games:
+        player_is_team_1 = player in [game.team_1_defense, game.team_1_attack]
+        opponent_defense_rating = \
+            (game.team_2_defense if player_is_team_1 else game.team_1_defense).get_rating(game.date_played)
+        opponent_attack_rating = \
+            (game.team_2_attack if player_is_team_1 else game.team_1_attack).get_rating(game.date_played)
+        opponent_rating = .5 * (opponent_defense_rating + opponent_attack_rating)
+        average_opponent_rating += opponent_rating
+        highest_opponent_rating = max(highest_opponent_rating, opponent_rating)
+        
+        eggs_dealt_count += int((game.team_2_score if player_is_team_1 else game.team_1_score) == 0)
+        eggs_collected_count += int((game.team_1_score if player_is_team_1 else game.team_2_score) == 0)
+    
+    average_opponent_rating /= len(games) if len(games) > 0 else 1
+    
+    return highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count
+
+def get_player_statistics(player: Player) -> dict[str, int]:
+    # Use sets to avoid one-player-teams (i.e., attack=defense) to
+    # be counted twice. Get ready for some good old discrete measure theory
+    # a.k.a. 'the pleasures of counting'.
+    games_as_team_1_defense = set(Game.objects.filter(team_1_defense=player))
+    games_as_team_1_attack = set(Game.objects.filter(team_1_attack=player))
+    games_as_team_1 = games_as_team_1_defense.union(games_as_team_1_attack)
+
+    defense_games_count = len(games_as_team_1_defense)
+    attack_games_count = len(games_as_team_1_attack)   
+    single_games_count = defense_games_count + attack_games_count - len(games_as_team_1)
+    defense_games_count -= single_games_count
+    attack_games_count -= single_games_count
+    
+    games_as_team_2_defense = set(Game.objects.filter(team_2_defense=player))
+    games_as_team_2_attack = set(Game.objects.filter(team_2_attack=player))
+    games_as_team_2 = games_as_team_2_defense.union(games_as_team_2_attack)
+    
+    defense_games_count += len(games_as_team_2_defense)
+    attack_games_count += len(games_as_team_2_attack)
+    single_games_team_2 = len(games_as_team_2_defense) + len(games_as_team_2_attack) - len(games_as_team_2)
+    single_games_count += single_games_team_2
+    defense_games_count -= single_games_team_2
+    attack_games_count -= single_games_team_2
     
     highest_opponent_rating = 0
     eggs_dealt_count = 0
     eggs_collected_count = 0
-    for game in games_as_team_1:
-        opponent_rating = .5 * (game.team_2_defense.elo_rating + game.team_2_attack.elo_rating)
-        highest_opponent_rating = max(highest_opponent_rating, opponent_rating)
-        eggs_dealt_count += int(game.team_2_score == 0)
-        eggs_collected_count += int(game.team_1_score == 0)
-        
-    for game in games_as_team_2:
-        opponent_rating = .5 * (game.team_1_defense.elo_rating + game.team_1_attack.elo_rating)
-        highest_opponent_rating = max(highest_opponent_rating, opponent_rating)
-        eggs_dealt_count += int(game.team_1_score == 0)
-        eggs_collected_count += int(game.team_2_score == 0)
+    average_opponent_rating = 0
+    highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count \
+    = compute_player_statistics(games_as_team_1.union(games_as_team_2),
+                                player,
+                                highest_opponent_rating, 
+                                average_opponent_rating, 
+                                eggs_dealt_count,
+                                eggs_collected_count)
         
     out = {}
+    out['game_count'] = defense_games_count + attack_games_count + single_games_count
     out['highest_opponent_rating'] = highest_opponent_rating
+    out['average_opponent_rating'] = average_opponent_rating
     out['defense_games_count'] = defense_games_count
     out['attack_games_count'] = attack_games_count
+    out['single_games_count'] = single_games_count
     out['eggs_dealt_count'] = eggs_dealt_count
     out['eggs_collected_count'] = eggs_collected_count
     
@@ -113,14 +146,15 @@ class IndexView(generic.ListView):
         return context
     
     def get_queryset(self) -> QuerySet[Player]:
-        return Player.objects.order_by('-elo_rating')[:5]
+        return sorted(Player.objects.all(), key=lambda a: -a.get_rating())[:5]
     
     
 class AllView(generic.ListView):
-    model = Player
+    template_name = 'elo/player_list.html'
+    context_object_name = 'player_list'
     
     def get_queryset(self) -> QuerySet[Player]:
-        return Player.objects.order_by('-elo_rating')
+        return sorted(Player.objects.all(), key=lambda a: -a.get_rating())
     
 class SubmitGameView(generic.ListView):
     template_name = 'elo/submit_game_form.html'
@@ -136,7 +170,7 @@ class PlayerDetailView(generic.DetailView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         ctx = super().get_context_data(**kwargs)
         ctx['high_score'] = self.object.playerrating_set.aggregate(Max('rating'))['rating__max']
-        player_stats = get_game_statistics(self.object)
+        player_stats = get_player_statistics(self.object)
         for key in player_stats:
             ctx[key] = player_stats[key]
         return ctx
@@ -197,14 +231,6 @@ def submit_game(request: HttpRequest):
                                team_2_score=team_2_score,
                                date_played=date)
     
-    team_1_av_rating = (team_1_defense.elo_rating + team_1_attack.elo_rating) / 2
-    team_2_av_rating = (team_2_defense.elo_rating + team_2_attack.elo_rating) / 2
-    
-    update_player_stats(team_1_defense, team_2_av_rating)
-    update_player_stats(team_1_attack, team_2_av_rating)
-    update_player_stats(team_2_defense, team_1_av_rating)
-    update_player_stats(team_2_attack, team_1_av_rating)
-    
     return HttpResponseRedirect(reverse('elo_app:index'))
 
 @user_passes_test(lambda u:u.is_staff, login_url=reverse_lazy('registration:login'))
@@ -230,8 +256,7 @@ def update_ratings(request: HttpRequest):
         
     for player_id, total_diff in diff_dict.items():
         player = Player.objects.get(pk=player_id)
-        player.elo_rating = max(player.elo_rating + total_diff, 100)
-        player.save()
-        PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=player.elo_rating)
+        new_elo_rating = max(player.get_rating() + total_diff, 100)
+        PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=new_elo_rating)
         
     return HttpResponseRedirect(reverse('elo_app:index'))

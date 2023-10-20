@@ -16,7 +16,10 @@ import datetime
 
 def create_player(name : str, rating : int = 400):
     user = User.objects.create_user(username=name, email="player@player.com", password=name[::-1])
-    return Player.objects.create(player_name=name, elo_rating=rating, user=user)
+    player = Player.objects.create(player_name=name, user=user)
+    date = timezone.now() - datetime.timedelta(days=7)
+    PlayerRating.objects.create(player=player, timestamp=date.date(), rating=rating)
+    return player
 
 def create_team() -> (list[Player], dict[str, int]):
     players = []
@@ -306,10 +309,7 @@ class TestUpdateScores(TestCase):
         for i in range(4):
             player = Player.objects.get(pk=players[i].id)
             player_ratings = player.playerrating_set.all()
-            self.assertEqual(len(player_ratings), 0)
-            self.assertEqual(player.number_of_games_played, 1)
-            self.assertEqual(player.opponent_average_rating, 400)
-            self.assertEqual(player.elo_rating, 400)
+            self.assertEqual(len(player_ratings), 1)
             
             
     def test_submit_game_update_ratings_no_superuser(self):
@@ -321,11 +321,6 @@ class TestUpdateScores(TestCase):
         self.assertEqual(response.status_code, 302)
         games = Game.objects.all()
         self.assertEqual(len(games), 0)
-        for i in range(4):
-            player = Player.objects.get(pk=players[i].id)
-            self.assertEqual(player.number_of_games_played, 0)
-            self.assertEqual(player.opponent_average_rating, 0)
-            self.assertEqual(player.elo_rating, 400)
             
     
     def test_submit_game_and_update_ratings_equal_elos(self):
@@ -343,65 +338,63 @@ class TestUpdateScores(TestCase):
             player = Player.objects.get(pk=players[i].id)
             player_ratings = player.playerrating_set.all()
             
-            self.assertEqual(len(player_ratings), 1)
-            self.assertEqual(player_ratings[0].player, player)
-            self.assertEqual(player_ratings[0].timestamp, timezone.now().date())
-            self.assertEqual(player_ratings[0].rating, 
+            self.assertEqual(len(player_ratings), 2)
+            self.assertEqual(player_ratings[1].player, player)
+            self.assertEqual(player_ratings[1].timestamp, timezone.now().date())
+            self.assertEqual(player_ratings[1].rating, 
                              400+16 if i%2==0 else 400-16)
-            
-            self.assertEqual(player.number_of_games_played, 1)
-            self.assertEqual(player.opponent_average_rating, 400)
-            self.assertEqual(player.elo_rating,
+            self.assertEqual(player.get_rating(),
                              400+16 if i%2==0 else 400-16)
             
             
     def test_submit_game_and_update_players_different_elos(self):
         players, context = create_team()
+        for i in range(3):
+            rating = players[i].playerrating_set.all()
+            self.assertEqual(len(rating), 1)
+            rating[0].rating = 250 + i*50
+            rating[0].save()
+        
+        admin = create_and_login_superuser(self.client)
         context['date'] = timezone.now().date()
         context['team_1_score'] = 10
         context['team_2_score'] = 5
-        players[0].elo_rating = 250
-        players[1].elo_rating = 300
-        players[2].elo_rating = 350
-        for i in range(3):
-            players[i].save()
-        admin = create_and_login_superuser(self.client)
-        
         self.client.post(reverse('elo_app:submit_game'), context)
         self.client.post(reverse('elo_app:update_ratings'))
         
         expected_ratings = [268, 282, 368, 382]
-        expected_av_ratings = [350, 300, 350, 300]
         
         for i in range(4):
             player = Player.objects.get(pk=players[i].id)
             player_ratings = player.playerrating_set.all()
             
-            self.assertEqual(len(player_ratings), 1)
-            self.assertEqual(player_ratings[0].player, player)
-            self.assertEqual(player_ratings[0].timestamp, timezone.now().date())
-            self.assertEqual(player_ratings[0].rating, expected_ratings[i])
+            self.assertEqual(len(player_ratings), 2)
+            self.assertEqual(player_ratings[1].player, player)
+            self.assertEqual(player_ratings[1].timestamp, timezone.now().date())
+            self.assertEqual(player_ratings[1].rating, expected_ratings[i])
             
-            self.assertEqual(player.number_of_games_played, 1)
-            self.assertEqual(player.opponent_average_rating, expected_av_ratings[i])
-            self.assertEqual(player.elo_rating, expected_ratings[i])
+            self.assertEqual(player.get_rating(), expected_ratings[i])
             
         
     def test_player_rating_cannot_drop_below_100(self):
         players, context = create_team()
+        for i in range(4):
+            rating = players[i].playerrating_set.all()
+            self.assertEqual(len(rating), 1)
+            rating[0].rating = 100
+            rating[0].save()
+            # players[i].elo_rating = 100
+            # players[i].save()
+            
+        admin = create_and_login_superuser(self.client)
         context['date'] = timezone.now().date()
         context['team_1_score'] = 10
         context['team_2_score'] = 5
-        for i in range(4):
-            players[i].elo_rating = 100
-            players[i].save()
-        admin = create_and_login_superuser(self.client)
-        
         self.client.post(reverse('elo_app:submit_game'), context)
         self.client.post(reverse('elo_app:update_ratings'))
         
         for i in range(4):
             player = Player.objects.get(pk=players[i].id)
             player_ratings = player.playerrating_set.all()
-            self.assertEqual(len(player_ratings), 1)
-            self.assertGreaterEqual(player.elo_rating, 100)
+            self.assertEqual(len(player_ratings), 2)
+            self.assertGreaterEqual(player.get_rating(), 100)
