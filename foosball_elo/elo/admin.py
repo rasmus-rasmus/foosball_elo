@@ -13,7 +13,7 @@ class GameAdmin(admin.ModelAdmin):
          ('Data', {'fields': ('team_1_score', 'team_2_score', 'date_played')}),
          ('Status', {'fields': ('updates_performed',)})
     ]
-    list_display = ['date_played', 'team_1_defense', 'team_1_attack', 'team_2_defense', 'team_2_attack', 'updates_performed']
+    list_display = ['date_played', 'team_1_defense', 'team_1_attack', 'team_2_defense', 'team_2_attack', 'updates_performed', 'submitted_by']
     search_fields = ['team_1_defense', 'team_1_attack', 'team_2_defense', 'team_2_attack']
     list_filter = ['date_played']
     

@@ -31,6 +31,7 @@
                         <th>Team 1</th>
                         <th>Team 2</th>
                         <th>Score</th>
+                        <th>Submitted by</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,6 +43,7 @@
                         <td>{{ game.team_1_defense }}, {{ game.team_1_attack }}</td>
                         <td>{{ game.team_2_defense}}, {{ game.team_2_attack }}</td>
                         <td>{{ game.team_1_score }} - {{ game.team_2_score }}</td>
+                        <td>{{ game.submitted_by }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

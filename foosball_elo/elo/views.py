@@ -192,6 +192,7 @@ def submit_game(request: HttpRequest):
         team_1_score = int(data['team_1_score'])
         team_2_score = int(data['team_2_score'])
         date = data['date']
+        user = request.user
         
         if not is_valid_score(team_1_score, team_2_score):
             raise InvalidScoreError(team_1_score, team_2_score)
@@ -229,7 +230,8 @@ def submit_game(request: HttpRequest):
                                team_2_attack=team_2_attack,
                                team_1_score=team_1_score,
                                team_2_score=team_2_score,
-                               date_played=date)
+                               date_played=date,
+                               submitted_by=user)
     
     return HttpResponseRedirect(reverse('elo_app:index'))
 

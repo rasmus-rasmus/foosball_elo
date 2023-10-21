@@ -63,6 +63,8 @@ class Game(models.Model):
     
     date_played = models.DateField('date played')
     
+    submitted_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    
     # Records whether the players in this game have had their rating updated based on its result
     updates_performed = models.BooleanField('player ratings updated?', default=False)
     
