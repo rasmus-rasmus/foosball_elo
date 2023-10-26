@@ -38,15 +38,14 @@ def are_valid_teams(team_1_defense : Player,
     return True
      
     
-"""
-    Returns updated (highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count)
-"""
 def compute_player_statistics(games : set[Game],
                               player: Player,
                               highest_opponent_rating: int,
                               average_opponent_rating: int,
                               eggs_dealt_count: int,
                               eggs_collected_count: int) -> tuple[int]:
+    """ Returns updated (highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count)
+    """
     for game in games:
         player_is_team_1 = player in [game.team_1_defense, game.team_1_attack]
         opponent_defense_rating = \

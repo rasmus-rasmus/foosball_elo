@@ -78,11 +78,11 @@ class SubmitPlayerTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(Player.objects.all()), 1)
         player=Player.objects.get(player_name='player1')
-        self.assertEqual(player.get_rating(), 400)
+        self.assertEqual(player.get_rating(), 800)
 
         ratings = player.playerrating_set.all()
         self.assertEqual(len(ratings), 1)
-        self.assertEqual(ratings[0].rating, 400)
+        self.assertEqual(ratings[0].rating, 800)
         date = timezone.now().date()
         while date.weekday() != 6:
             date -= timedelta(days=1)
@@ -101,7 +101,7 @@ class SubmitPlayerTest(TestCase):
             last_sunday -= timedelta(days=1)
         self.assertEqual(rating.player.player_name, 'player1')
         self.assertEqual(rating.timestamp, last_sunday)
-        self.assertEqual(rating.rating, 400)
+        self.assertEqual(rating.rating, 800)
         
         
     #TODO: Test e-mail already in use

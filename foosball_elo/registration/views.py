@@ -43,7 +43,7 @@ def submit_player(request: HttpRequest):
         date = timezone.now().date()
         while (date.weekday() != 6):
             date -= timedelta(days=1)
-        PlayerRating.objects.create(player=player, timestamp=date, rating=400)
+        PlayerRating.objects.create(player=player, timestamp=date, rating=800)
     except IntegrityError:
         return render(request, 
                       'registration/submit_player_form.html', 

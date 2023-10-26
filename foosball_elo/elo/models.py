@@ -10,10 +10,9 @@ class Player(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     player_name = models.CharField(max_length=50, unique=True)
     
-    """
-    Returns player's rating at the time given by date, or latest rating if date isn't specified.
-    """
     def get_rating(self, date: datetime.date = None) -> int:
+        """ Returns player's rating at the time given by date, or latest rating if date isn't specified.
+        """
         player_ratings = self.playerrating_set.all()
         
         if len(player_ratings) == 0:
@@ -75,15 +74,14 @@ class Game(models.Model):
             return 2
         return 0
     
-    """
-    Computes the ratings diffs of both teams based on the outcome of the game.
-    Returns a tuple containing rating diffs for team_1 and team_2 in that order.
-    NB: How the rating diff is shared between the two players, should be determined
-    by the caller of this method. 
-    """
     def compute_rating_diffs(self, 
                              scaling_factor : int = 400, 
                              adaption_step : int = 64) -> tuple[int]:
+        """ Computes the ratings diffs of both teams based on the outcome of the game.
+            Returns a tuple containing rating diffs for team_1 and team_2 in that order.
+            NB: How the rating diff is shared between the two players, should be determined
+            by the caller of this method. 
+        """
         team_1_rating = (self.team_1_defense.get_rating() + self.team_1_attack.get_rating()) * .5
         team_2_rating = (self.team_2_defense.get_rating() + self.team_2_attack.get_rating()) * .5
         
