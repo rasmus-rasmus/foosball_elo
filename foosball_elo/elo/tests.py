@@ -311,8 +311,20 @@ class TestUpdateScores(TestCase):
             player_ratings = player.playerrating_set.all()
             self.assertEqual(len(player_ratings), 1)
             
+    def test_update_ratings_no_games_played(self):
+        # If a player has played no games since the last update,
+        # we should still insert a rating in the PlayerRatings
+        # table equal to the last rating.
+        
+        players, context = create_team()
+        create_and_login_superuser(self.client)
+        self.client.post(reverse('elo_app:update_ratings'))
+        for i in range(4):
+            ratings = PlayerRating.objects.filter(player=players[i])
+            self.assertEqual(len(ratings), 2)
+            self.assertEqual(ratings[0].rating, ratings[1].rating)
             
-    def test_submit_game_update_ratings_no_superuser(self):
+    def test_submit_game_and_update_ratings_no_superuser(self):
         players, context = create_team()
         context['date'] = timezone.now().date()
         context['team_1_score'] = 10

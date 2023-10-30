@@ -238,25 +238,26 @@ def submit_game(request: HttpRequest):
 def update_ratings(request: HttpRequest):
     if not request.method == 'POST':
         return HttpResponseRedirect(reverse('elo_app:index'))
+    
+    diff_dict = dict(
+        zip(list(Player.objects.all()), 
+            [0 for x in range(Player.objects.count())]
+        )
+    )
+    
     unrecorded_games = Game.objects.filter(updates_performed=False)
-    diff_dict = {}
     for game in unrecorded_games:
         team_1_diff, team_2_diff = game.compute_rating_diffs()
-        looper_counter = 0
-        for player in (game.team_1_defense, 
-                       game.team_1_attack, 
-                       game.team_2_defense, 
-                       game.team_2_attack):
-            if player.id in diff_dict.keys():
-                diff_dict[player.id] += round(team_1_diff*.5) if looper_counter < 2 else round(team_2_diff*.5)
-            else:
-                diff_dict[player.id] = round(team_1_diff*.5) if looper_counter < 2 else round(team_2_diff*.5)
-            looper_counter += 1
+        for idx, player in enumerate([game.team_1_defense, 
+                                      game.team_1_attack, 
+                                      game.team_2_defense, 
+                                      game.team_2_attack]):
+            diff_dict[player] += round(team_1_diff*.5) if idx < 2 else round(team_2_diff*.5)
         game.updates_performed = True
         game.save()
+    
         
-    for player_id, total_diff in diff_dict.items():
-        player = Player.objects.get(pk=player_id)
+    for player, total_diff in diff_dict.items():
         new_elo_rating = max(player.get_rating() + total_diff, 100)
         PlayerRating.objects.create(player=player, timestamp=timezone.now().date(), rating=new_elo_rating)
         
