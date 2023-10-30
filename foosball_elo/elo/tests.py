@@ -42,7 +42,8 @@ def create_game(winner_team : int,
                                team_2_attack=player_4 if player_4!=None else create_player("player_4"),
                                team_1_score = 10 if winner_team==1 else 0,
                                team_2_score = 10 if winner_team==0 else 10,
-                               date_played=date)
+                               date_played=date,
+                               submitted_by=User.objects.all()[0])
     
 def create_and_login_user(client) -> User:
     user = User.objects.create_user(username='user', email='user@user.com', password='resu')
@@ -88,6 +89,20 @@ class IndexTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['top_5_list'],
                                  [players[i] for i in range(9, 4, -1)])
+        
+    def test_recent_games(self):
+        # We want to only show the games that have not yet been used
+        # to perform rating updates.
+        
+        create_game(1)
+        players = Player.objects.all()
+        create_game(1, *[players[i] for i in range(4)])
+        game = Game.objects.get(pk=1)
+        game.updates_performed = True
+        game.save()
+        response = self.client.get(reverse('elo_app:index'))
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['recent_games'], Game.objects.filter(pk=2))
         
         
 class AllViewTest(TestCase):

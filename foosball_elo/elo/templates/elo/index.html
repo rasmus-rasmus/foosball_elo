@@ -23,7 +23,7 @@
             {% endif %}
         </div>
         <div>
-            <h2>Recent games</h2>
+            <h2>Pending games*</h2>
             <table border=1>
                 <thead>
                     <tr>
@@ -48,6 +48,10 @@
                     {% endfor %}
                 </tbody>
             </table>
+            <p>
+                * The games displayed here are the ones that have been recorded but have not yet been used 
+                to compute new ratings for the players involved. Ratings are updated once every week.
+            </p>
         </div>
         <form action="{% url 'elo_app:update_ratings' %}" method="post">
             {% csrf_token %}

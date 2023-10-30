@@ -141,7 +141,7 @@ class IndexView(generic.ListView):
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context['recent_games'] = Game.objects.order_by('-date_played')[:5]
+        context['recent_games'] = Game.objects.filter(updates_performed=False).order_by('-date_played')
         return context
     
     def get_queryset(self) -> QuerySet[Player]:
