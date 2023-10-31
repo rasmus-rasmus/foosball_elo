@@ -43,7 +43,10 @@ class SubmitPlayerTest(TestCase):
         
 
     def test_submit_player_invalid_character(self):
-        form_data = {'player_name': '@lexander', 'email': 'player1@player1.com', 'password': 'secret'}
+        form_data = {'player_name': '@lexander', 
+                     'email': 'player1@player1.com', 
+                     'password': '1reyalp',
+                     'verification_code': 'ThisIsNotTheSecretCode'}
         response1 = self.client.post(reverse('registration:submit_player'), data=form_data)
         form_data['player_name'] = 'l&mpersand'
         response2 = self.client.post(reverse('registration:submit_player'), data=form_data)
@@ -56,24 +59,43 @@ class SubmitPlayerTest(TestCase):
 
         
     def test_submit_player_invalid_email(self):
-        form_data = {'player_name': 'player1', 'email': 'thisisnotavalidemail', 'password': '1reyalp'}
+        form_data = {'player_name': 'player1', 
+                     'email': 'thisisnotavalidemail', 
+                     'password': '1reyalp',
+                     'verification_code': 'ThisIsNotTheSecretCode'}
         response = self.client.post(reverse('registration:submit_player'), data=form_data)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'],
-                                 'Please provide a valid email.')
-        self.assertContains(response, 'Please provide a valid email.')
+                                 'Enter a valid email address.')
+        
+    
+    def test_submit_player_wrong_verification_code(self):
+        form_data = {'player_name': 'player1', 
+                     'email': 'player1@player1.com', 
+                     'password': '1reyalp',
+                     'verification_code': 'WrongCode'}
+        response = self.client.post(reverse('registration:submit_player'), data=form_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['error_message'],
+                                 "You didn't provide the correct verification code")
         
 
     def test_submit_player_username_already_in_use(self):
         create_player('player1')
-        form_data = {'player_name': 'player1', 'email': 'player1@player1.com', 'password': '1reyalp'}
+        form_data = {'player_name': 'player1', 
+                     'email': 'player1@player1.com', 
+                     'password': '1reyalp',
+                     'verification_code': 'ThisIsNotTheSecretCode'}
         response = self.client.post(reverse('registration:submit_player'), data=form_data)
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['error_message'], 'Username already in use.') 
         
         
     def test_submit_player_player_in_db(self):
-        form_data = {'player_name': 'player1', 'email': 'player1@player1.com', 'password': '1reyalp'}
+        form_data = {'player_name': 'player1', 
+                     'email': 'player1@player1.com', 
+                     'password': '1reyalp',
+                     'verification_code': 'ThisIsNotTheSecretCode'}
         response = self.client.post(reverse('registration:submit_player'), data=form_data)          
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(Player.objects.all()), 1)
@@ -90,7 +112,10 @@ class SubmitPlayerTest(TestCase):
         
 
     def test_submit_initial_playerrating_in_db(self):
-        form_data = {'player_name': 'player1', 'email': 'player1@player1.com', 'password': '1reyalp'}
+        form_data = {'player_name': 'player1', 
+                     'email': 'player1@player1.com', 
+                     'password': '1reyalp',
+                     'verification_code': 'ThisIsNotTheSecretCode'}
         response = self.client.post(reverse('registration:submit_player'), data=form_data)        
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(PlayerRating.objects.all()), 1)

@@ -11,7 +11,20 @@ from django.core.validators import validate_email
 from elo.models import Player, PlayerRating
 from datetime import timedelta
 
-# Create your views here.
+#############
+## HELPERS ##
+#############
+
+def verify_code(verification_code: str) -> bool:
+    with open("registration/secrets/verification_code.txt") as f:
+        code_from_file = f.readline()
+        return verification_code == code_from_file
+    
+
+###########
+## VIEWS ##
+###########        
+
 
 class SubmitPlayerView(generic.TemplateView):
     template_name = 'registration/submit_player_form.html'
@@ -24,7 +37,6 @@ def submit_player(request: HttpRequest):
         if len(request.POST['player_name']) == 0 or len(request.POST['password']) == 0:
             raise ValueError
         
-        validate_email(request.POST['email'])
         
         accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         accepted_characters += accepted_characters.lower()
@@ -32,6 +44,13 @@ def submit_player(request: HttpRequest):
         for character in request.POST['player_name']:
             if not character in accepted_characters:
                 raise ValueError
+            
+        validate_email(request.POST['email'])
+        
+        if not verify_code(request.POST['verification_code']):
+            # Obviously not a bullet proof verification method - this is just a 
+            # quick and dirty way to prevent bots from spamming the db
+            raise ValidationError("You didn't provide the correct verification code")
         
         user = User.objects.create_user(username=request.POST['player_name'],
                                         email=request.POST['email'],
@@ -56,10 +75,10 @@ def submit_player(request: HttpRequest):
         return render(request,
                       'registration/submit_player_form.html',
                       {'error_message': 'Please fill out all fields.'})
-    except ValidationError:
+    except ValidationError as e:
         return render(request,
                       'registration/submit_player_form.html',
-                      {'error_message': 'Please provide a valid email.'})
+                      {'error_message': e.message})
     
     return HttpResponseRedirect(reverse('elo_app:player_detail', args=(player.id,)),
                                 {'ratings': player.playerrating_set.all()})
