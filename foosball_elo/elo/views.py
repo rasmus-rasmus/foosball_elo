@@ -39,19 +39,23 @@ def are_valid_teams(team_1_defense : Player,
      
     
 def compute_player_statistics(games : set[Game],
-                              player: Player,
-                              highest_opponent_rating: int,
-                              average_opponent_rating: int,
-                              eggs_dealt_count: int,
-                              eggs_collected_count: int) -> tuple[int]:
+                              player: Player) -> tuple[int]:
     """ Returns updated (highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count)
     """
+    highest_opponent_rating = 0
+    average_opponent_rating = 0
+    eggs_dealt_count = 0
+    eggs_collected_count = 0
+    
     for game in games:
         player_is_team_1 = player in [game.team_1_defense, game.team_1_attack]
+        
         opponent_defense_rating = \
             (game.team_2_defense if player_is_team_1 else game.team_1_defense).get_rating(game.date_played)
+            
         opponent_attack_rating = \
             (game.team_2_attack if player_is_team_1 else game.team_1_attack).get_rating(game.date_played)
+            
         opponent_rating = .5 * (opponent_defense_rating + opponent_attack_rating)
         average_opponent_rating += opponent_rating
         highest_opponent_rating = max(highest_opponent_rating, opponent_rating)
@@ -88,17 +92,9 @@ def get_player_statistics(player: Player) -> dict[str, int]:
     defense_games_count -= single_games_team_2
     attack_games_count -= single_games_team_2
     
-    highest_opponent_rating = 0
-    eggs_dealt_count = 0
-    eggs_collected_count = 0
-    average_opponent_rating = 0
     highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count \
     = compute_player_statistics(games_as_team_1.union(games_as_team_2),
-                                player,
-                                highest_opponent_rating, 
-                                average_opponent_rating, 
-                                eggs_dealt_count,
-                                eggs_collected_count)
+                                player)
         
     out = {}
     out['game_count'] = defense_games_count + attack_games_count + single_games_count
@@ -160,7 +156,7 @@ class SubmitGameView(generic.ListView):
     context_object_name = 'all_players_list'
     
     def get_queryset(self):
-        return Player.objects.order_by('player_name')
+        return Player.objects.all()
     
     
 class PlayerDetailView(generic.DetailView):
@@ -171,7 +167,7 @@ class PlayerDetailView(generic.DetailView):
         ctx['high_score'] = self.object.playerrating_set.aggregate(Max('rating'))['rating__max']
         player_stats = get_player_statistics(self.object)
         for key in player_stats:
-            ctx[key] = player_stats[key]
+            ctx[key] = round(player_stats[key], 2)
         return ctx
 
 

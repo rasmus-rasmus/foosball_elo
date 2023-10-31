@@ -17,6 +17,8 @@ from datetime import timedelta
 
 def verify_code(verification_code: str) -> bool:
     with open("registration/secrets/verification_code.txt") as f:
+        # Since this is a public repo, the verification code should obviously 
+        # be changed to something different in a production environment.
         code_from_file = f.readline()
         return verification_code == code_from_file
     
