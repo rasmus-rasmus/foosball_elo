@@ -41,7 +41,7 @@ def create_game(winner_team : int,
                                team_2_defense=player_3 if player_3!=None else create_player("player_3"),
                                team_2_attack=player_4 if player_4!=None else create_player("player_4"),
                                team_1_score = 10 if winner_team==1 else 0,
-                               team_2_score = 10 if winner_team==0 else 10,
+                               team_2_score = 10 if winner_team==2 else 0,
                                date_played=date,
                                submitted_by=User.objects.all()[0])
     
@@ -74,9 +74,10 @@ class IndexTest(TestCase):
     def test_two_players(self):
         player1 = create_player("player1")
         player2= create_player("player2", 200)
+        all_players = Player.objects.all()
         response = self.client.get(reverse('elo_app:index'))
         self.assertEqual(response.status_code, 200)
-        self.assertQuerySetEqual(response.context['top_5_list'], [player1, player2])
+        self.assertQuerySetEqual(response.context['top_5_list'], [(player1, 0), (player2, 0)])
         self.assertContains(response, player1.player_name)
         self.assertContains(response, player2.player_name)
         
@@ -88,7 +89,7 @@ class IndexTest(TestCase):
         response = self.client.get(reverse('elo_app:index'))
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['top_5_list'],
-                                 [players[i] for i in range(9, 4, -1)])
+                                 [(players[i], 0) for i in range(9, 4, -1)])
         
     def test_recent_games(self):
         # We want to only show the games that have not yet been used
@@ -100,9 +101,19 @@ class IndexTest(TestCase):
         game = Game.objects.get(pk=1)
         game.updates_performed = True
         game.save()
+        
         response = self.client.get(reverse('elo_app:index'))
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['recent_games'], Game.objects.filter(pk=2))
+        
+    def test_pending_diff(self):
+        create_game(1)
+        players = Player.objects.all()
+        expected_diffs = [16, 16, -16, -16]
+        response = self.client.get(reverse('elo_app:index'))
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['top_5_list'], 
+                                 [(players[i], expected_diffs[i]) for i in range(4)])
         
         
 class AllViewTest(TestCase):
@@ -119,7 +130,7 @@ class AllViewTest(TestCase):
         player1 = create_player("player1")
         response = self.client.get(reverse('elo_app:all'))
         self.assertEqual(response.status_code, 200)
-        self.assertQuerySetEqual(response.context['player_list'], [player1, player2])
+        self.assertQuerySetEqual(response.context['player_list'], [(player1, 0), (player2, 0)])
         self.assertContains(response, player1.player_name)
         self.assertContains(response, player2.player_name)
         
@@ -132,7 +143,16 @@ class AllViewTest(TestCase):
         response = self.client.get(reverse('elo_app:all'))
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context['player_list'],
-                                 players[::-1])
+                                 list(zip(players[::-1], [0 for x in players])))
+        
+    def test_pending_diff(self):
+        create_game(1)
+        players = Player.objects.all()
+        expected_diffs = [16, 16, -16, -16]
+        response = self.client.get(reverse('elo_app:all'))
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['player_list'], 
+                                 [(players[i], expected_diffs[i]) for i in range(4)])
 
 
 class DetailTest(TestCase):

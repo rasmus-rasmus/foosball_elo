@@ -9,14 +9,26 @@
         <h1>All players</h1>
         {% if player_list %}
         <h2>Ranking:</h2>
-            <ol>
-            {% for player in player_list %}
-                <li>
-                    <a href="{% url 'elo_app:player_detail' player.id %}"> {{ player.player_name }}</a>
-                    -- {{ player.get_rating }}
-                </li>
-            {% endfor %}
-            </ol>
+            <table border=1>
+                <thead>
+                    <tr>
+                        <th>Position</th>
+                        <th>Player</th>
+                        <th>Rating</th>
+                        <th>Pending rating update</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in player_list %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td><a href="{% url 'elo_app:player_detail' player.0.id %}"> {{ player.0.player_name }}</a></td>
+                        <td>{{ player.0.get_rating }}</td>
+                        <td>{{ player.1 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         {% else %}
             <p>No players available!</p>
         {% endif %}

@@ -107,6 +107,28 @@ def get_player_statistics(player: Player) -> dict[str, int]:
     out['eggs_collected_count'] = eggs_collected_count
     
     return out
+    
+
+def get_all_rating_diffs(save_games: bool = False):
+    diff_dict = dict(
+        zip(list(Player.objects.all()), 
+            [0 for x in range(Player.objects.count())]
+        )
+    )
+    
+    unrecorded_games = Game.objects.filter(updates_performed=False)
+    for game in unrecorded_games:
+        team_1_diff, team_2_diff = game.compute_rating_diffs()
+        for idx, player in enumerate([game.team_1_defense, 
+                                      game.team_1_attack, 
+                                      game.team_2_defense, 
+                                      game.team_2_attack]):
+            diff_dict[player] += round(team_1_diff*.5) if idx < 2 else round(team_2_diff*.5)
+        if save_games:
+            game.updates_performed = True
+            game.save()
+    
+    return diff_dict
            
     
 class InvalidScoreError(Exception):
@@ -141,15 +163,21 @@ class IndexView(generic.ListView):
         return context
     
     def get_queryset(self) -> QuerySet[Player]:
-        return sorted(Player.objects.all(), key=lambda a: -a.get_rating())[:5]
+        players = sorted(Player.objects.all(), key=lambda a: -a.get_rating())[:5]
+        rating_diffs = get_all_rating_diffs()
+        return list(zip(players, [rating_diffs[p] for p in players]))
     
     
 class AllView(generic.ListView):
     template_name = 'elo/player_list.html'
     context_object_name = 'player_list'
     
+    
+    
     def get_queryset(self) -> QuerySet[Player]:
-        return sorted(Player.objects.all(), key=lambda a: -a.get_rating())
+        players = sorted(Player.objects.all(), key=lambda a: -a.get_rating())
+        rating_diffs = get_all_rating_diffs()
+        return list(zip(players, [rating_diffs[p] for p in players]))
     
 class SubmitGameView(generic.ListView):
     template_name = 'elo/submit_game_form.html'
@@ -235,23 +263,7 @@ def update_ratings(request: HttpRequest):
     if not request.method == 'POST':
         return HttpResponseRedirect(reverse('elo_app:index'))
     
-    diff_dict = dict(
-        zip(list(Player.objects.all()), 
-            [0 for x in range(Player.objects.count())]
-        )
-    )
-    
-    unrecorded_games = Game.objects.filter(updates_performed=False)
-    for game in unrecorded_games:
-        team_1_diff, team_2_diff = game.compute_rating_diffs()
-        for idx, player in enumerate([game.team_1_defense, 
-                                      game.team_1_attack, 
-                                      game.team_2_defense, 
-                                      game.team_2_attack]):
-            diff_dict[player] += round(team_1_diff*.5) if idx < 2 else round(team_2_diff*.5)
-        game.updates_performed = True
-        game.save()
-    
+    diff_dict = get_all_rating_diffs(save_games=True)
         
     for player, total_diff in diff_dict.items():
         new_elo_rating = max(player.get_rating() + total_diff, 100)
