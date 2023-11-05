@@ -40,10 +40,12 @@ def are_valid_teams(team_1_defense : Player,
     
 def compute_player_statistics(games : set[Game],
                               player: Player) -> tuple[int]:
-    """ Returns updated (highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count)
+    """ Returns (highest_opponent_rating, average_opponent_rating, games_won, games_lost, eggs_dealt_count, eggs_collected_count)
     """
     highest_opponent_rating = 0
     average_opponent_rating = 0
+    games_won = 0
+    games_lost = 0
     eggs_dealt_count = 0
     eggs_collected_count = 0
     
@@ -60,12 +62,17 @@ def compute_player_statistics(games : set[Game],
         average_opponent_rating += opponent_rating
         highest_opponent_rating = max(highest_opponent_rating, opponent_rating)
         
+        if game.winner() == 2-int(player_is_team_1):
+            games_won += 1
+        else:
+            games_lost += 1
+        
         eggs_dealt_count += int((game.team_2_score if player_is_team_1 else game.team_1_score) == 0)
         eggs_collected_count += int((game.team_1_score if player_is_team_1 else game.team_2_score) == 0)
     
     average_opponent_rating /= len(games) if len(games) > 0 else 1
     
-    return highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count
+    return highest_opponent_rating, average_opponent_rating, games_won, games_lost, eggs_dealt_count, eggs_collected_count
 
 def get_player_statistics(player: Player) -> dict[str, int]:
     # Use sets to avoid one-player-teams (i.e., attack=defense) to
@@ -92,7 +99,7 @@ def get_player_statistics(player: Player) -> dict[str, int]:
     defense_games_count -= single_games_team_2
     attack_games_count -= single_games_team_2
     
-    highest_opponent_rating, average_opponent_rating, eggs_dealt_count, eggs_collected_count \
+    highest_opponent_rating, average_opponent_rating, games_won, games_lost, eggs_dealt_count, eggs_collected_count \
     = compute_player_statistics(games_as_team_1.union(games_as_team_2),
                                 player)
         
@@ -103,6 +110,8 @@ def get_player_statistics(player: Player) -> dict[str, int]:
     out['defense_games_count'] = defense_games_count
     out['attack_games_count'] = attack_games_count
     out['single_games_count'] = single_games_count
+    out['games_won'] = games_won
+    out['games_lost'] = games_lost
     out['eggs_dealt_count'] = eggs_dealt_count
     out['eggs_collected_count'] = eggs_collected_count
     
