@@ -217,12 +217,12 @@ def submit_game(request: HttpRequest):
         })
     data = request.POST
     try:
-        team_1_defense = Player.objects.get(pk=data['team_1_defense'])
-        team_1_attack = Player.objects.get(pk=data['team_1_attack'])
-        team_2_defense = Player.objects.get(pk=data['team_2_defense'])
-        team_2_attack = Player.objects.get(pk=data['team_2_attack'])
-        team_1_score = int(data['team_1_score'])
-        team_2_score = int(data['team_2_score'])
+        team_1_defense = Player.objects.get(pk=data['winning_team_defense'])
+        team_1_attack = Player.objects.get(pk=data['winning_team_attack'])
+        team_2_defense = Player.objects.get(pk=data['losing_team_defense'])
+        team_2_attack = Player.objects.get(pk=data['losing_team_attack'])
+        team_1_score = 10
+        team_2_score = int(data['losing_team_score'])
         date = data['date']
         user = request.user
         
