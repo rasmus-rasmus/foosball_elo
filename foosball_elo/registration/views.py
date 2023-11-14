@@ -20,6 +20,10 @@ def verify_code(verification_code: str) -> bool:
         # Since this is a public repo, the verification code should obviously 
         # be changed to something different in a production environment.
         code_from_file = f.readline()
+        
+        code_from_file = code_from_file.lower().replace(" ", "").strip()
+        verification_code = verification_code.lower().replace(" ", "").strip()
+        
         return verification_code == code_from_file
     
 
@@ -40,11 +44,10 @@ def submit_player(request: HttpRequest):
             raise ValueError
         
         
-        accepted_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        accepted_characters += accepted_characters.lower()
+        accepted_characters = "abcdefghijklmnopqrstuvwxyz"
         accepted_characters += "1234567890_"
         for character in request.POST['player_name']:
-            if not character in accepted_characters:
+            if not character.lower() in accepted_characters:
                 raise ValueError
             
         validate_email(request.POST['email'])

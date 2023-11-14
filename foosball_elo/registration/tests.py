@@ -79,6 +79,18 @@ class SubmitPlayerTest(TestCase):
         self.assertQuerySetEqual(response.context['error_message'],
                                  "You didn't provide the correct verification code")
         
+    
+    def test_submit_player_allowed_variations_of_verification_code(self):
+        form_data = {'player_name': 'player1', 
+                     'email': 'player1@player1.com', 
+                     'password': '1reyalp',
+                     'verification_code': 'this is not the secret code\n'}
+        response = self.client.post(reverse('registration:submit_player'), data=form_data)          
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(Player.objects.all()), 1)
+        player=Player.objects.get(player_name='player1')
+        self.assertEqual(player.get_rating(), 800)
+        
 
     def test_submit_player_username_already_in_use(self):
         create_player('player1')
