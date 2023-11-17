@@ -17,10 +17,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth.views import LoginView
+from api.models import GameResource
 
+game_resource = GameResource()
 
 urlpatterns = [
     path("admin/", admin.site.urls, name="admin"),
     path("elo/", include('elo.urls'), name="elo"),
-    path("", include('registration.urls'), name="registration")
+    path("", include('registration.urls'), name="registration"),
+    path("api/", include(game_resource.urls))
 ]

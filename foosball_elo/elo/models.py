@@ -94,6 +94,9 @@ class Game(models.Model):
         team_2_diff = adaption_step * (int(winner==2) - team_2_expected_outcome)
         return team_1_diff, team_2_diff
     
+    def get_rating_diff_abs(self):
+        return abs(self.compute_rating_diffs()[0])
+    
     class Meta:
         # For ordering most recent to last
         ordering = ['-date_played']
