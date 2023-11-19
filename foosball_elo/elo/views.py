@@ -118,25 +118,49 @@ def get_player_statistics(player: Player) -> dict[str, int]:
     return out
     
 
-def get_all_rating_diffs(save_games: bool = False):
+def get_all_rating_diffs(save_games: bool = False, penalize_inactivity: bool = False):
+    all_players = sorted(Player.objects.all(), key=lambda a: -a.get_rating())
     diff_dict = dict(
         zip(list(Player.objects.all()), 
-            [0 for x in range(Player.objects.count())]
+            [(None if penalize_inactivity else 0) for x in range(Player.objects.count())]
         )
     )
     
     unrecorded_games = Game.objects.filter(updates_performed=False)
     for game in unrecorded_games:
         team_1_diff, team_2_diff = game.compute_rating_diffs()
+        
         for idx, player in enumerate([game.team_1_defense, 
                                       game.team_1_attack, 
                                       game.team_2_defense, 
                                       game.team_2_attack]):
-            diff_dict[player] += round(team_1_diff*.5) if idx < 2 else round(team_2_diff*.5)
+            curr_diff = round(team_1_diff*.5) if idx < 2 else round(team_2_diff*.5)
+            if diff_dict[player]:
+                diff_dict[player] += curr_diff
+            else:
+                diff_dict[player] = curr_diff
+            
         if save_games:
             game.updates_performed = True
             game.save()
     
+    if not penalize_inactivity:
+        return diff_dict
+    
+    for idx, player in enumerate(all_players):
+        # If player has been inactive since last update, i.e., diff_dict[player] == None,
+        # player loses 1 point for each active player ranking below them (but no more than 25 though),
+        # and each such player gains 1 point, to keep the total number of points in the league unchanged.
+        if not diff_dict[player]:
+            penalty_diff = 0
+            for other_idx in range(idx+1, len(all_players)):
+                if penalty_diff <= -25:
+                    break
+                if diff_dict[all_players[other_idx]]:
+                    diff_dict[all_players[other_idx]] += 1
+                    penalty_diff -= 1
+            diff_dict[player] = penalty_diff
+            
     return diff_dict
            
     
@@ -272,7 +296,7 @@ def update_ratings(request: HttpRequest):
     if not request.method == 'POST':
         return HttpResponseRedirect(reverse('elo_app:index'))
     
-    diff_dict = get_all_rating_diffs(save_games=True)
+    diff_dict = get_all_rating_diffs(save_games=True, penalize_inactivity=True)
         
     for player, total_diff in diff_dict.items():
         new_elo_rating = max(player.get_rating() + total_diff, 100)

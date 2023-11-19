@@ -422,8 +422,6 @@ class TestUpdateScores(TestCase):
             self.assertEqual(len(rating), 1)
             rating[0].rating = 100
             rating[0].save()
-            # players[i].elo_rating = 100
-            # players[i].save()
             
         admin = create_and_login_superuser(self.client)
         context['date'] = timezone.now().date()
@@ -437,3 +435,30 @@ class TestUpdateScores(TestCase):
             player_ratings = player.playerrating_set.all()
             self.assertEqual(len(player_ratings), 2)
             self.assertGreaterEqual(player.get_rating(), 100)
+            
+    def test_inactivity_penalty(self):
+        players, context = create_team()
+        for i in range(3):
+            player_rating_set = players[i].playerrating_set.all()
+            rating = player_rating_set[0]
+            rating.rating = 250 + i*50
+            rating.save()
+        
+        create_game(1, players[0], players[0], players[1], players[1])
+        
+        create_and_login_superuser(self.client)
+        self.client.post(reverse('elo_app:update_ratings'))
+        self.assertEqual(players[0].get_rating(), 250+36+2)
+        self.assertEqual(players[1].get_rating(), 300-36+2)
+        self.assertEqual(players[2].get_rating(), 350-2)
+        self.assertEqual(players[3].get_rating(), 400-2)
+                
+    def test_inactivity_penalty_cannot_exceed_neg_25(self):
+        for i in range(0, 40, 4):
+            players = [create_player(name=f'player_{i+j}') for j in range(4)]
+            create_game(1, *players)
+        inactive_player = create_player(name='inactive_player', rating=800)
+        create_and_login_superuser(self.client)
+        self.client.post(reverse('elo_app:update_ratings'))
+        self.assertEqual(inactive_player.get_rating(), 800-25)
+        
