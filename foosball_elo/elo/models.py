@@ -19,7 +19,6 @@ class Player(models.Model):
             # Can only happen if player was added through admin interface.
             return 0
         if date == None:
-            # QuerySets don't support negative indexing :'(
             return player_ratings[len(player_ratings) - 1].rating
         if len(player_ratings) == 1:
             return player_ratings[0].rating

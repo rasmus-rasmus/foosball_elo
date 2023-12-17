@@ -1,3 +1,5 @@
+import signal
+
 from django.test import TestCase
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -5,7 +7,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 
 from .models import Player, Game, PlayerRating
-from .views import InvalidTeamsError, InvalidScoreError, InvalidDateEror
+from .views import InvalidTeamsError, InvalidScoreError, InvalidDateEror, get_player_statistics
 
 import datetime
 
@@ -57,6 +59,19 @@ def create_and_login_superuser(client) -> User:
     user = User.objects.create_superuser(username='admin', email='admin@admin.com', password='nimda')
     client.login(username='admin', password='nimda')
     return user
+
+
+class timeout:
+    def __init__(self, seconds=1, error_message='Timeout'):
+        self.seconds = seconds
+        self.error_message = error_message
+    def handle_timeout(self, signum, frame):
+        raise AssertionError(self.error_message)
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+    def __exit__(self, type, value, traceback):
+        signal.alarm(0)
 
 
 ###########
@@ -462,3 +477,46 @@ class TestUpdateScores(TestCase):
         self.client.post(reverse('elo_app:update_ratings'))
         self.assertEqual(inactive_player.get_rating(), 800-25)
         
+
+class TestDBPerformance(TestCase):
+    """
+    Many of the views, in particular the PlayerDetailView, appear to become very slow or completely halt 
+    somewhere during execution as soon as the database contains more than a few rows.
+    For example `get_player_statistics` queries all games played by some Player,
+    and the default sqlite database can't appear to handle these queries as only the query for the first game
+    ever resolves. This test reproduces this behaviour by creating some players and then creating games and updating
+    ratings some number of weeks back in time. All parts of the code which result in some database operation(s) are run within
+    a `timeout` wrapper to ensure that an AssertionError is raised if the operation(s) take too long.
+    
+    With num_weeks = 5 the test passes with the default sqlite database, but with num_weeks = 6 the execution times out at
+    one of the `get_player_statistics` calls.
+    """
+    
+    def test_db_performance(self):
+        players = [create_player(name="player"+str(i), rating=400+i*50) for i in range(7)]
+        player_idx = 0
+        create_and_login_superuser(self.client)
+        num_weeks = 6
+        for i in range(num_weeks):
+            
+            for j in range(5):
+                players_for_game = []
+                for _ in range(4):
+                    players_for_game.append(players[player_idx])
+                    player_idx = (player_idx + 1) % len(players)
+                with timeout(seconds=1):
+                    create_game(j % 2 + 1, *players_for_game, timezone.now().date() - datetime.timedelta(weeks=num_weeks-1-i, days=j))
+            
+            with timeout(seconds=1):
+                self.client.post(reverse('elo_app:update_ratings'))
+
+            recent_ratings = PlayerRating.objects.filter(timestamp=timezone.now().date())
+            with timeout(seconds=1):
+                for rating in recent_ratings:
+                    rating.timestamp -= datetime.timedelta(weeks=num_weeks-1-i)
+                    rating.save()
+                
+        for p in players:
+            with timeout(seconds=5):
+                get_player_statistics(p)
+            
